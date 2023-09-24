@@ -7,7 +7,7 @@
   },
   "type": "module",
   "exports": {
-    ".": "./lib/index.js"
+    "shorthand.macro": "./lib/shorthand.macro.js"
   },
   "files": [
     "lib/**/*.js"
