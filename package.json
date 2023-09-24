@@ -1,0 +1,30 @@
+{
+  "name": "@bablr/boot",
+  "version": "0.0.0",
+  "description": "Tools for bootstrapping BABLR VM",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./lib/index.js"
+  },
+  "files": [
+    "lib/**/*.js"
+  ],
+  "sideEffects": false,
+  "dependencies": {},
+  "devDependencies": {
+    "@bablr/eslint-config-base": "github:bablr-lang/eslint-config-base#a49dbe6861a82d96864ee89fbf0ec1844a8a5e8e",
+    "enhanced-resolve": "^5.12.0",
+    "eslint": "^8.47.0",
+    "eslint-import-resolver-enhanced-resolve": "^1.0.5",
+    "eslint-plugin-import": "^2.27.5",
+    "expect": "^29.6.2",
+    "prettier": "^2.0.5"
+  },
+  "repository": "git@github.com:bablr-lang/boot.git",
+  "homepage": "https://github.com/bablr-lang/boot",
+  "author": "Conrad Buck <conartist6@gmail.com>",
+  "license": "MIT"
+}
