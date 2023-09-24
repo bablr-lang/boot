@@ -2,12 +2,16 @@ lockfileVersion: 5.4
 
 specifiers:
   '@bablr/eslint-config-base': github:bablr-lang/eslint-config-base#a49dbe6861a82d96864ee89fbf0ec1844a8a5e8e
+  '@bablr/miniparser': github:bablr-lang/miniparser#200b51307c301dbe76d74a1b2bed12bc95562d46
   enhanced-resolve: ^5.12.0
   eslint: ^8.47.0
   eslint-import-resolver-enhanced-resolve: ^1.0.5
   eslint-plugin-import: ^2.27.5
   expect: ^29.6.2
   prettier: ^2.0.5
+
+dependencies:
+  '@bablr/miniparser': github.com/bablr-lang/miniparser/200b51307c301dbe76d74a1b2bed12bc95562d46
 
 devDependencies:
   '@bablr/eslint-config-base': github.com/bablr-lang/eslint-config-base/a49dbe6861a82d96864ee89fbf0ec1844a8a5e8e_eslint@8.50.0
@@ -823,6 +827,11 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
+  /escape-string-regexp/5.0.0:
+    resolution: {integrity: sha512-/veY75JbMK4j1yjvuUxuVsiS/hr/4iHs9FTT6cgTexxdE0Ly/glccBAkloH/DofkjRbZU3bnoj38mOmhkZ0lHw==}
+    engines: {node: '>=12'}
+    dev: false
+
   /eslint-import-resolver-enhanced-resolve/1.0.5:
     resolution: {integrity: sha512-Ss07NWhqdeOHq+Jevl4f5gPqHoRKyNTSXUoLxP/dMCXUUCsowGFv7/ccJ4fMcAdeqL+WhfA/p4AYWbtY6fB0wQ==}
     dependencies:
@@ -1381,6 +1390,10 @@ packages:
   /isexe/2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
     dev: true
+
+  /iter-tools-es/7.5.3:
+    resolution: {integrity: sha512-xj+T3W48RBrooJhafZZ3m8l0JQ/GBmRTcGfqJx4rA/IevwPRkff/919C8EgfQP3HPTnJnHVi+0KgeGKYjoKzvg==}
+    dev: false
 
   /jest-diff/29.7.0:
     resolution: {integrity: sha512-LMIgiIrhigmPrs03JHpxUh2yISK3vLFPkAodPeo0+BuF7wA2FoQbkEg1u8gBYBThncu7e1oEDUfIXVuTqLRUjw==}
@@ -2020,3 +2033,12 @@ packages:
       - eslint-import-resolver-webpack
       - supports-color
     dev: true
+
+  github.com/bablr-lang/miniparser/200b51307c301dbe76d74a1b2bed12bc95562d46:
+    resolution: {tarball: https://codeload.github.com/bablr-lang/miniparser/tar.gz/200b51307c301dbe76d74a1b2bed12bc95562d46}
+    name: '@bablr/miniparser'
+    version: 0.0.0
+    dependencies:
+      escape-string-regexp: 5.0.0
+      iter-tools-es: 7.5.3
+    dev: false
