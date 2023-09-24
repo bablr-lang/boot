@@ -14,7 +14,6 @@
   "sideEffects": false,
   "dependencies": {
     "@babel/template": "^7.22.15",
-    "@bablr/miniparser": "github:bablr-lang/miniparser#200b51307c301dbe76d74a1b2bed12bc95562d46",
     "babel-plugin-macros": "^3.1.0"
   },
   "devDependencies": {
