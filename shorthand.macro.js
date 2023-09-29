@@ -1,10 +1,12 @@
 const t = require('@babel/types');
+const { expression } = require('@babel/template');
 const isObject = require('iter-tools-es/methods/is-object');
 const isUndefined = require('iter-tools-es/methods/is-undefined');
 const isNull = require('iter-tools-es/methods/is-null');
 const isString = require('iter-tools-es/methods/is-string');
 const { createMacro } = require('babel-plugin-macros');
-const { TemplateParser } = require('./lib/miniparser.js');
+const { TemplateParser } = require('./lib/miniparser/miniparser.js');
+const { Resolver } = require('./lib/miniparser/resolver.js');
 const instruction = require('./lib/miniparser-languages/instruction.js');
 
 const { isArray } = Array;
@@ -25,14 +27,18 @@ const getASTValue = (v, exprs) => {
   }
 };
 
-const generateEmbedded = (ast, exprs) => {
-  let node = ast;
-
-  return t.objectExpression(
-    Object.entries(node).map(([k, v]) => {
-      return t.objectProperty(t.identifier(k), getASTValue(v, exprs));
-    }),
-  );
+const generateEmbedded = (node, exprs) => {
+  const resolver = new Resolver();
+  return expression.ast`t.${node.type}(${node.children
+    .filter((child) => child.type === 'ReferenceTag')
+    .map(({ attrs }) => {
+      let child = node.properties[attrs.path];
+      let match;
+      if ((match = /\[\s*(\w+)\s*\]/.exec(attrs.path))) {
+        child = child[resolver.eat(match[1])];
+      }
+      generateEmbedded(child, exprs);
+    })})`;
 };
 
 const shorthandMacro = ({ references }) => {
@@ -43,10 +49,9 @@ const shorthandMacro = ({ references }) => {
     const { quasis, expressions } = taggedTemplate.node.quasi;
 
     const ast = new TemplateParser(
-      instruction,
       quasis.map((q) => q.value.raw),
       expressions.map((expr) => null),
-    ).eval({ lang: instruction.name, type: 'Call' });
+    ).eval(instruction, 'Call');
     // console.log(JSON.stringify(ast, undefined, 4));
     taggedTemplate.replaceWith(generateEmbedded(ast, expressions));
   }
