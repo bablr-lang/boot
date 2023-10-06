@@ -12,7 +12,7 @@ const instruction = require('./lib/languages/instruction.js');
 const { isArray } = Array;
 
 const getASTValue = (v, exprs) => {
-  if (isObject(v) && v.type === 'GapNodeTag') {
+  if (isObject(v) && v.type?.type === 'GapNodeTag') {
     return exprs.pop();
   } else {
     return isNull(v)
@@ -41,7 +41,7 @@ const generateEmbedded = (node, exprs) => {
     })})`;
 };
 
-const gap = { type: 'Gap', tagName: { language: instruction.name, type: 'Call' }, attrs: {} };
+const gap = { type: { language: instruction.name, production: 'Call' }, attrs: {} };
 
 const shorthandMacro = ({ references }) => {
   const { i = [], spam = [], re = [] } = references;
