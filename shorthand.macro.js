@@ -5,9 +5,9 @@ const isUndefined = require('iter-tools-es/methods/is-undefined');
 const isNull = require('iter-tools-es/methods/is-null');
 const isString = require('iter-tools-es/methods/is-string');
 const { createMacro } = require('babel-plugin-macros');
-const { TemplateParser } = require('./lib/miniparser/miniparser.js');
-const { Resolver } = require('./lib/miniparser/resolver.js');
-const instruction = require('./lib/miniparser-languages/instruction.js');
+const { TemplateParser } = require('./lib/miniparser.js');
+const { Resolver } = require('./lib/resolver.js');
+const instruction = require('./lib/languages/instruction.js');
 
 const { isArray } = Array;
 
@@ -41,6 +41,8 @@ const generateEmbedded = (node, exprs) => {
     })})`;
 };
 
+const gap = { type: 'Gap', tagName: { language: instruction.name, type: 'Call' }, attrs: {} };
+
 const shorthandMacro = ({ references }) => {
   const { i = [], spam = [], re = [] } = references;
 
@@ -49,9 +51,10 @@ const shorthandMacro = ({ references }) => {
     const { quasis, expressions } = taggedTemplate.node.quasi;
 
     const ast = new TemplateParser(
+      instruction,
       quasis.map((q) => q.value.raw),
-      expressions.map((expr) => null),
-    ).eval(instruction, 'Call');
+      expressions.map(() => null),
+    ).eval(gap);
     // console.log(JSON.stringify(ast, undefined, 4));
     taggedTemplate.replaceWith(generateEmbedded(ast, expressions));
   }
