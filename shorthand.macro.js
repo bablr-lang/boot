@@ -29,16 +29,7 @@ const getASTValue = (v, exprs) => {
 
 const generateEmbedded = (node, exprs) => {
   const resolver = new Resolver();
-  return expression.ast`t.${node.type}(${node.children
-    .filter((child) => child.type === 'ReferenceTag')
-    .map(({ attrs }) => {
-      let child = node.properties[attrs.path];
-      let match;
-      if ((match = /\[\s*(\w+)\s*\]/.exec(attrs.path))) {
-        child = child[resolver.eat(match[1])];
-      }
-      generateEmbedded(child, exprs);
-    })})`;
+  return expression.ast`t.node()`;
 };
 
 const gap = { type: { language: instruction.name, production: 'Call' }, attrs: {} };
