@@ -38,7 +38,7 @@ const generateNodeChild = (child) => {
   } else if (child.type === 'String') {
     return expression.ast(`t.str\`${child.value.replace(/\\/g, '\\\\')}\``);
   } else if (child.type === 'Trivia') {
-    return expression.ast(`t.trivia\`${child.value.replace(/\n/g, '\\n')}\``);
+    return expression.ast(`t.trivia\` \``);
   } else if (child.type === 'Escape') {
     return expression.ast(`t.esc\`${child.value.replace(/\n/g, '\\n'.replace(/\\/g, '\\\\'))}\``);
   } else {
