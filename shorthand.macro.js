@@ -81,7 +81,7 @@ const generateNode = (node, exprs) => {
   )})`;
 };
 
-const gap = { type: { language: instruction.name, production: 'Call' }, attrs: {} };
+const id = { language: instruction.name, type: 'Call' };
 
 const shorthandMacro = ({ references }) => {
   const { i = [], spam = [], re = [] } = references;
@@ -94,7 +94,7 @@ const shorthandMacro = ({ references }) => {
       instruction,
       quasis.map((q) => q.value.raw),
       expressions.map(() => null),
-    ).eval(gap);
+    ).eval(id);
 
     taggedTemplate.replaceWith(generateNode(ast, expressions));
   }
