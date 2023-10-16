@@ -7,8 +7,10 @@ const isString = require('iter-tools-es/methods/is-string');
 const { createMacro } = require('babel-plugin-macros');
 const { TemplateParser } = require('./lib/miniparser.js');
 const { Resolver } = require('./lib/resolver.js');
-const instruction = require('./lib/languages/instruction.js');
-const { set, parsePath, stripPathBraces } = require('./lib/utils.js');
+const i = require('./lib/languages/instruction.js');
+const re = require('./lib/languages/regex.js');
+const spam = require('./lib/languages/spamex.js');
+const { set, parsePath } = require('./lib/utils.js');
 
 const { isArray } = Array;
 
@@ -40,7 +42,7 @@ const generateNodeChild = (child) => {
   } else if (child.type === 'Trivia') {
     return expression.ast(`t.trivia\` \``);
   } else if (child.type === 'Escape') {
-    return expression.ast(`t.esc\`${child.value.replace(/\n/g, '\\n'.replace(/\\/g, '\\\\'))}\``);
+    return expression.ast(`t.esc(${child.cooked}, ${child.raw})`);
   } else {
     throw new Error(`Unkown child type ${child.type}`);
   }
@@ -48,8 +50,8 @@ const generateNodeChild = (child) => {
 
 const generateNode = (node, exprs) => {
   const resolver = new Resolver();
-  const { children, properties, language, production } = node;
-  const production_ = t.stringLiteral(production);
+  const { children, properties, type } = node;
+  const type_ = t.stringLiteral(type);
   const properties_ = {};
   const children_ = [];
 
@@ -72,39 +74,38 @@ const generateNode = (node, exprs) => {
     }
   }
 
-  return expression.ast`t.node(${production_}, ${t.arrayExpression(
-    children_,
-  )}, ${t.objectExpression(
+  return expression.ast`t.node(${type_}, ${t.arrayExpression(children_)}, ${t.objectExpression(
     Object.entries(properties_).map(([key, value]) =>
       t.objectProperty(t.identifier(key), isArray(value) ? t.arrayExpression(value) : value),
     ),
   )})`;
 };
 
-const id = { language: instruction.name, type: 'Call' };
+const languages = {
+  i,
+  re,
+  spam,
+};
 
 const shorthandMacro = ({ references }) => {
-  const { i = [], spam = [], re = [] } = references;
-
-  for (const ref of i) {
-    const taggedTemplate = ref.parentPath;
+  for (const ref of Object.values(references).flat()) {
+    const taggedTemplate =
+      ref.parentPath.type === 'MemberExpression' ? ref.parentPath.parentPath : ref.parentPath;
     const { quasis, expressions } = taggedTemplate.node.quasi;
 
+    const language = languages[ref.node.name];
+    const type =
+      ref.parentPath.type === 'MemberExpression' ? ref.parentPath.node.property.name : 'Call';
+
+    if (!language) throw new Error();
+
     const ast = new TemplateParser(
-      instruction,
+      language,
       quasis.map((q) => q.value.raw),
       expressions.map(() => null),
-    ).eval(id);
+    ).eval({ language: language.name, type });
 
     taggedTemplate.replaceWith(generateNode(ast, expressions));
-  }
-
-  for (const reference of spam) {
-    reference.parentPath.replaceWith(t.objectExpression([]));
-  }
-
-  for (const reference of re) {
-    reference.parentPath.replaceWith(t.objectExpression([]));
   }
 };
 
