@@ -11,12 +11,13 @@ const i = require('./lib/languages/instruction.js');
 const re = require('./lib/languages/regex.js');
 const spam = require('./lib/languages/spamex.js');
 const { set, parsePath } = require('./lib/utils.js');
+const { addNamed } = require('@babel/helper-module-imports');
 
 const { isArray } = Array;
 
 const isPlainObject = (v) => isObject(v) && !isArray(v);
 
-const getASTValue = (v, exprs) => {
+const getASTValue = (v, exprs, t_) => {
   return isNull(v)
     ? t.nullLiteral()
     : isUndefined(v)
@@ -29,26 +30,30 @@ const getASTValue = (v, exprs) => {
     ? t.objectExpression(
         Object.entries(v).map(([k, v]) => t.objectProperty(t.identifier(k), getASTValue(v))),
       )
-    : generateNode(v, exprs);
+    : generateNode(v, exprs, t_);
 };
 
-const generateNodeChild = (child) => {
+const generateNodeChild = (child, t_) => {
   if (child.type === 'Reference') {
-    return expression.ast(`t.ref\`${child.value}\``);
+    return expression(`%%t_%%.ref\`${child.value}\``)({ t_ });
   } else if (child.type === 'Gap') {
-    return expression.ast(`t.gap\`${child.value}\``);
+    return expression(`%%t_%%.gap\`${child.value}\``)({ t_ });
   } else if (child.type === 'String') {
-    return expression.ast(`t.str\`${child.value.replace(/\\/g, '\\\\')}\``);
+    return expression(`%%t_%%.str\`${child.value.replace(/\\/g, '\\\\')}\``)({ t_ });
   } else if (child.type === 'Trivia') {
-    return expression.ast(`t.trivia\` \``);
+    return expression(`%%t_%%.trivia\` \``)({ t_ });
   } else if (child.type === 'Escape') {
-    return expression.ast(`t.esc(${child.cooked}, ${child.raw})`);
+    return expression(`%%t_%%.esc(%%cooked%%, %%raw%%)`)({
+      t_,
+      cooked: child.cooked,
+      raw: child.raw,
+    });
   } else {
     throw new Error(`Unkown child type ${child.type}`);
   }
 };
 
-const generateNode = (node, exprs) => {
+const generateNode = (node, exprs, t_) => {
   const resolver = new Resolver();
   const { children, properties, type } = node;
   const type_ = t.stringLiteral(type);
@@ -56,7 +61,7 @@ const generateNode = (node, exprs) => {
   const children_ = [];
 
   for (const child of children) {
-    children_.push(generateNodeChild(child));
+    children_.push(generateNodeChild(child, t_));
 
     if (child.type === 'Reference' || child.type === 'Gap') {
       const path = child.value;
@@ -69,16 +74,21 @@ const generateNode = (node, exprs) => {
         if (pathIsArray) {
           value = value[resolver.eat(pathName)];
         }
-        set(properties_, path, generateNode(value, exprs));
+        set(properties_, path, generateNode(value, exprs, t_));
       }
     }
   }
 
-  return expression.ast`t.node(${type_}, ${t.arrayExpression(children_)}, ${t.objectExpression(
-    Object.entries(properties_).map(([key, value]) =>
-      t.objectProperty(t.identifier(key), isArray(value) ? t.arrayExpression(value) : value),
+  return expression(`%%t%%.node(%%type%%, %%children%%, %%properties%%)`)({
+    t: t_,
+    type: type_,
+    children: t.arrayExpression(children_),
+    properties: t.objectExpression(
+      Object.entries(properties_).map(([key, value]) =>
+        t.objectProperty(t.identifier(key), isArray(value) ? t.arrayExpression(value) : value),
+      ),
     ),
-  )})`;
+  });
 };
 
 const languages = {
@@ -87,8 +97,20 @@ const languages = {
   spam,
 };
 
+const getTopScope = (scope) => {
+  let top = scope;
+  while (top.parent) top = top.parent;
+  return top;
+};
+
 const shorthandMacro = ({ references }) => {
+  let importName = null;
+
   for (const ref of Object.values(references).flat()) {
+    if (!importName) {
+      importName = addNamed(getTopScope(ref.scope).path, 't', '@bablr/boot-helpers');
+    }
+
     const taggedTemplate =
       ref.parentPath.type === 'MemberExpression' ? ref.parentPath.parentPath : ref.parentPath;
     const { quasis, expressions } = taggedTemplate.node.quasi;
@@ -105,7 +127,7 @@ const shorthandMacro = ({ references }) => {
       expressions.map(() => null),
     ).eval({ language: language.name, type });
 
-    taggedTemplate.replaceWith(generateNode(ast, expressions));
+    taggedTemplate.replaceWith(generateNode(ast, expressions, importName));
   }
 };
 
