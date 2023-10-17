@@ -12,7 +12,7 @@ const i = require('./lib/languages/instruction.js');
 const re = require('./lib/languages/regex.js');
 const spam = require('./lib/languages/spamex.js');
 const { set, parsePath } = require('./lib/utils.js');
-const { addNamed } = require('@babel/helper-module-imports');
+const { addNamespace } = require('@babel/helper-module-imports');
 
 const { isArray } = Array;
 
@@ -111,7 +111,9 @@ const shorthandMacro = ({ references }) => {
 
   for (const ref of concat(references.i, references.spam, references.re)) {
     if (!importName) {
-      importName = addNamed(getTopScope(ref.scope).path, 't', '@bablr/boot-helpers');
+      importName = addNamespace(getTopScope(ref.scope).path, '@bablr/boot-helpers/types', {
+        nameHint: 't',
+      });
     }
 
     const taggedTemplate =
