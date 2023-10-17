@@ -4,6 +4,7 @@ const isObject = require('iter-tools-es/methods/is-object');
 const isUndefined = require('iter-tools-es/methods/is-undefined');
 const isNull = require('iter-tools-es/methods/is-null');
 const isString = require('iter-tools-es/methods/is-string');
+const concat = require('iter-tools-es/methods/concat');
 const { createMacro } = require('babel-plugin-macros');
 const { TemplateParser } = require('./lib/miniparser.js');
 const { Resolver } = require('./lib/resolver.js');
@@ -49,7 +50,7 @@ const generateNodeChild = (child, t_) => {
       raw: child.raw,
     });
   } else {
-    throw new Error(`Unkown child type ${child.type}`);
+    throw new Error(`Unknown child type ${child.type}`);
   }
 };
 
@@ -106,13 +107,16 @@ const getTopScope = (scope) => {
 const shorthandMacro = ({ references }) => {
   let importName = null;
 
-  for (const ref of Object.values(references).flat()) {
+  // decorator references
+
+  for (const ref of concat(references.i, references.spam, references.re)) {
     if (!importName) {
       importName = addNamed(getTopScope(ref.scope).path, 't', '@bablr/boot-helpers');
     }
 
     const taggedTemplate =
       ref.parentPath.type === 'MemberExpression' ? ref.parentPath.parentPath : ref.parentPath;
+
     const { quasis, expressions } = taggedTemplate.node.quasi;
 
     const language = languages[ref.node.name];
