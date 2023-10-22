@@ -17,6 +17,7 @@
     "@babel/helper-module-imports": "^7.22.15",
     "@babel/template": "^7.22.15",
     "@babel/types": "7.23.0",
+    "@bablr/boot-helpers": "github:bablr-lang/boot-helpers#f1c942a90af3f8844716005b3a7fc0986ebb2565",
     "escape-string-regexp": "4.0.0",
     "iter-tools-es": "^7.5.3"
   },
@@ -25,7 +26,6 @@
     "@babel/core": "^7.23.0",
     "@babel/plugin-proposal-decorators": "^7.23.2",
     "@babel/plugin-transform-runtime": "^7.23.2",
-    "@bablr/boot-helpers": "github:bablr-lang/boot-helpers#f173c649da4974f8583cfdf9bd105cd1d0b6c788",
     "@bablr/eslint-config-base": "github:bablr-lang/eslint-config-base#a49dbe6861a82d96864ee89fbf0ec1844a8a5e8e",
     "babel-plugin-macros": "^3.1.0",
     "enhanced-resolve": "^5.12.0",

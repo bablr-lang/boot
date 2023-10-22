@@ -7,12 +7,12 @@ const isString = require('iter-tools-es/methods/is-string');
 const concat = require('iter-tools-es/methods/concat');
 const { createMacro } = require('babel-plugin-macros');
 const { TemplateParser } = require('./lib/miniparser.js');
-const { Resolver } = require('./lib/resolver.js');
 const i = require('./lib/languages/instruction.js');
 const re = require('./lib/languages/regex.js');
 const spam = require('./lib/languages/spamex.js');
-const { set, parsePath } = require('./lib/utils.js');
+const { set } = require('./lib/utils.js');
 const { addNamespace } = require('@babel/helper-module-imports');
+const { PathResolver } = require('@bablr/boot-helpers');
 
 const { isArray } = Array;
 
@@ -55,8 +55,8 @@ const generateNodeChild = (child, t_) => {
 };
 
 const generateNode = (node, exprs, t_) => {
-  const resolver = new Resolver();
-  const { children, properties, type, language } = node;
+  const resolver = new PathResolver(node);
+  const { children, type, language } = node;
   const properties_ = {};
   const children_ = [];
 
@@ -65,15 +65,11 @@ const generateNode = (node, exprs, t_) => {
 
     if (child.type === 'Reference' || child.type === 'Gap') {
       const path = child.value;
-      const { pathIsArray, pathName } = parsePath(path);
 
       if (child.type === 'Gap') {
         set(properties_, path, exprs.pop());
       } else {
-        let value = properties[pathName];
-        if (pathIsArray) {
-          value = value[resolver.eat(pathName)];
-        }
+        let value = resolver.get(path);
         set(properties_, path, generateNode(value, exprs, t_));
       }
     }
