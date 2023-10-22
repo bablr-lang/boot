@@ -12,7 +12,7 @@ const re = require('./lib/languages/regex.js');
 const spam = require('./lib/languages/spamex.js');
 const { set } = require('./lib/utils.js');
 const { addNamespace } = require('@babel/helper-module-imports');
-const { PathResolver } = require('@bablr/boot-helpers');
+const { PathResolver } = require('@bablr/boot-helpers/path');
 
 const { isArray } = Array;
 
