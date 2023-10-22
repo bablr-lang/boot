@@ -56,8 +56,7 @@ const generateNodeChild = (child, t_) => {
 
 const generateNode = (node, exprs, t_) => {
   const resolver = new Resolver();
-  const { children, properties, type } = node;
-  const type_ = t.stringLiteral(type);
+  const { children, properties, type, language } = node;
   const properties_ = {};
   const children_ = [];
 
@@ -80,9 +79,10 @@ const generateNode = (node, exprs, t_) => {
     }
   }
 
-  return expression(`%%t%%.node(%%type%%, %%children%%, %%properties%%)`)({
+  return expression(`%%t%%.node(%%language%%, %%type%%, %%children%%, %%properties%%)`)({
     t: t_,
-    type: type_,
+    language: t.stringLiteral(language),
+    type: t.stringLiteral(type),
     children: t.arrayExpression(children_),
     properties: t.objectExpression(
       Object.entries(properties_).map(([key, value]) =>
