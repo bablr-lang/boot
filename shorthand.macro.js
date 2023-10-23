@@ -94,6 +94,12 @@ const languages = {
   spam,
 };
 
+const topTypes = {
+  i: 'Call',
+  re: 'Pattern',
+  spam: 'Matcher',
+};
+
 const getTopScope = (scope) => {
   let top = scope;
   while (top.parent) top = top.parent;
@@ -117,9 +123,12 @@ const shorthandMacro = ({ references }) => {
 
     const { quasis, expressions } = taggedTemplate.node.quasi;
 
-    const language = languages[ref.node.name];
+    const tagName = ref.node.name;
+    const language = languages[tagName];
     const type =
-      ref.parentPath.type === 'MemberExpression' ? ref.parentPath.node.property.name : 'Call';
+      ref.parentPath.type === 'MemberExpression'
+        ? ref.parentPath.node.property.name
+        : topTypes[tagName];
 
     if (!language) throw new Error();
 
