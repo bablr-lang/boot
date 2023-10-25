@@ -10,15 +10,24 @@ const { TemplateParser } = require('./lib/miniparser.js');
 const i = require('./lib/languages/instruction.js');
 const re = require('./lib/languages/regex.js');
 const spam = require('./lib/languages/spamex.js');
-const { set } = require('./lib/utils.js');
-const { addNamespace } = require('@babel/helper-module-imports');
+const { parsePath } = require('./lib/utils.js');
+const { addNamespace, addNamed } = require('@babel/helper-module-imports');
 const { PathResolver } = require('@bablr/boot-helpers/path');
 
+const { hasOwn } = Object;
 const { isArray } = Array;
-
 const isPlainObject = (v) => isObject(v) && !isArray(v);
 
-const getASTValue = (v, exprs, t_) => {
+const setFlat = (obj, path, value) => {
+  const { pathName } = parsePath(path);
+
+  if (hasOwn(obj, pathName)) {
+    throw new Error('duplicate child name');
+  }
+  obj[pathName] = value;
+};
+
+const getASTValue = (v, exprs, bindings) => {
   return isNull(v)
     ? t.nullLiteral()
     : isUndefined(v)
@@ -31,21 +40,21 @@ const getASTValue = (v, exprs, t_) => {
     ? t.objectExpression(
         Object.entries(v).map(([k, v]) => t.objectProperty(t.identifier(k), getASTValue(v))),
       )
-    : generateNode(v, exprs, t_);
+    : generateNode(v, exprs, bindings);
 };
 
-const generateNodeChild = (child, t_) => {
+const generateNodeChild = (child, bindings) => {
   if (child.type === 'Reference') {
-    return expression(`%%t_%%.ref\`${child.value}\``)({ t_ });
+    return expression(`%%t%%.ref\`${child.value}\``)({ t: bindings.t });
   } else if (child.type === 'Gap') {
-    return expression(`%%t_%%.gap\`${child.value}\``)({ t_ });
+    return expression(`%%t%%.gap\`${child.value}\``)({ t: bindings.t });
   } else if (child.type === 'String') {
-    return expression(`%%t_%%.str\`${child.value.replace(/\\/g, '\\\\')}\``)({ t_ });
+    return expression(`%%t%%.str\`${child.value.replace(/\\/g, '\\\\')}\``)({ t: bindings.t });
   } else if (child.type === 'Trivia') {
-    return expression(`%%t_%%.trivia\` \``)({ t_ });
+    return expression(`%%t%%.trivia\` \``)({ t: bindings.t });
   } else if (child.type === 'Escape') {
-    return expression(`%%t_%%.esc(%%cooked%%, %%raw%%)`)({
-      t_,
+    return expression(`%%t%%.esc(%%cooked%%, %%raw%%)`)({
+      t: bindings.t,
       cooked: child.cooked,
       raw: child.raw,
     });
@@ -54,29 +63,39 @@ const generateNodeChild = (child, t_) => {
   }
 };
 
-const generateNode = (node, exprs, t_) => {
+const generateNode = (node, exprs, bindings) => {
   const resolver = new PathResolver(node);
   const { children, type, language } = node;
   const properties_ = {};
   const children_ = [];
 
   for (const child of children) {
-    children_.push(generateNodeChild(child, t_));
+    children_.push(generateNodeChild(child, bindings));
 
     if (child.type === 'Reference' || child.type === 'Gap') {
       const path = child.value;
 
       if (child.type === 'Gap') {
-        set(properties_, path, exprs.pop());
+        const { pathIsArray } = parsePath(path);
+        if (pathIsArray) {
+          const expr = expression('%%interpolateArray%%(%%expr%%)')({
+            interpolateArray: bindings.interpolateArray,
+            expr: exprs.pop(),
+          });
+
+          setFlat(properties_, path, expr);
+        } else {
+          setFlat(properties_, path, exprs.pop());
+        }
       } else {
         let value = resolver.get(path);
-        set(properties_, path, generateNode(value, exprs, t_));
+        setFlat(properties_, path, generateNode(value, exprs, bindings));
       }
     }
   }
 
   return expression(`%%t%%.node(%%language%%, %%type%%, %%children%%, %%properties%%)`)({
-    t: t_,
+    t: bindings.t,
     language: t.stringLiteral(language),
     type: t.stringLiteral(type),
     children: t.arrayExpression(children_),
@@ -107,15 +126,23 @@ const getTopScope = (scope) => {
 };
 
 const shorthandMacro = ({ references }) => {
-  let importName = null;
+  const bindings = {};
 
   // decorator references
 
   for (const ref of concat(references.i, references.spam, references.re)) {
-    if (!importName) {
-      importName = addNamespace(getTopScope(ref.scope).path, '@bablr/boot-helpers/types', {
+    if (!bindings.t) {
+      bindings.t = addNamespace(getTopScope(ref.scope).path, '@bablr/boot-helpers/types', {
         nameHint: 't',
       });
+    }
+
+    if (!bindings.interpolateArray) {
+      bindings.interpolateArray = addNamed(
+        getTopScope(ref.scope).path,
+        'interpolateArray',
+        '@bablr/boot-helpers/template',
+      );
     }
 
     const taggedTemplate =
@@ -138,7 +165,7 @@ const shorthandMacro = ({ references }) => {
       expressions.map(() => null),
     ).eval({ language: language.name, type });
 
-    taggedTemplate.replaceWith(generateNode(ast, expressions, importName));
+    taggedTemplate.replaceWith(generateNode(ast, expressions, bindings));
   }
 };
 
