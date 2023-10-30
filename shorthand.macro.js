@@ -18,13 +18,23 @@ const { hasOwn } = Object;
 const { isArray } = Array;
 const isPlainObject = (v) => isObject(v) && !isArray(v);
 
-const setFlat = (obj, path, value) => {
-  const { pathName } = parsePath(path);
+const set = (obj, path, value) => {
+  const { pathIsArray, pathName } = parsePath(path);
 
-  if (hasOwn(obj, pathName)) {
-    throw new Error('duplicate child name');
+  if (pathIsArray) {
+    if (!obj[pathName]) {
+      obj[pathName] = [];
+    }
+
+    if (!isArray(obj[pathName])) throw new Error('bad array value');
+
+    obj[pathName].push(value);
+  } else {
+    if (hasOwn(obj, pathName)) {
+      throw new Error('duplicate child name');
+    }
+    obj[pathName] = value;
   }
-  obj[pathName] = value;
 };
 
 const getASTValue = (v, exprs, bindings) => {
@@ -76,20 +86,25 @@ const generateNode = (node, exprs, bindings) => {
       const path = child.value;
 
       if (child.type === 'Gap') {
-        const { pathIsArray } = parsePath(path);
+        const { pathIsArray, pathName } = parsePath(path);
+
         if (pathIsArray) {
           const expr = expression('%%interpolateArray%%(%%expr%%)')({
             interpolateArray: bindings.interpolateArray,
             expr: exprs.pop(),
           });
 
-          setFlat(properties_, path, expr);
+          if (!properties_[pathName]) {
+            properties_[pathName] = [];
+          }
+
+          properties_[pathName].push(expr);
         } else {
-          setFlat(properties_, path, exprs.pop());
+          set(properties_, path, exprs.pop());
         }
       } else {
         let value = resolver.get(path);
-        setFlat(properties_, path, generateNode(value, exprs, bindings));
+        set(properties_, path, generateNode(value, exprs, bindings));
       }
     }
   }
