@@ -16,6 +16,9 @@ const { PathResolver } = require('@bablr/boot-helpers/path');
 
 const { hasOwn } = Object;
 const { isArray } = Array;
+const isNumber = (v) => typeof v === 'number';
+const isBoolean = (v) => typeof v === 'boolean';
+
 const isPlainObject = (v) => isObject(v) && !isArray(v);
 
 const set = (obj, path, value) => {
@@ -44,11 +47,17 @@ const getASTValue = (v, exprs, bindings) => {
     ? t.identifier('undefined')
     : isString(v)
     ? t.stringLiteral(v)
+    : isNumber(v)
+    ? t.numericLiteral(v)
+    : isBoolean(v)
+    ? t.booleanLiteral(v)
     : isArray(v)
-    ? t.arrayExpression(v.map((v) => getASTValue(v, exprs)))
+    ? t.arrayExpression(v.map((v) => getASTValue(v, exprs, bindings)))
     : isPlainObject(v) && !v.language
     ? t.objectExpression(
-        Object.entries(v).map(([k, v]) => t.objectProperty(t.identifier(k), getASTValue(v))),
+        Object.entries(v).map(([k, v]) =>
+          t.objectProperty(t.identifier(k), getASTValue(v, exprs, bindings)),
+        ),
       )
     : generateNode(v, exprs, bindings);
 };
@@ -75,9 +84,13 @@ const generateNodeChild = (child, bindings) => {
 
 const generateNode = (node, exprs, bindings) => {
   const resolver = new PathResolver(node);
-  const { children, type, language } = node;
+  const { children, type, language, attributes } = node;
   const properties_ = {};
   const children_ = [];
+
+  if (!children) {
+    throw new Error();
+  }
 
   for (const child of children) {
     children_.push(generateNodeChild(child, bindings));
@@ -109,7 +122,9 @@ const generateNode = (node, exprs, bindings) => {
     }
   }
 
-  return expression(`%%t%%.node(%%language%%, %%type%%, %%children%%, %%properties%%)`)({
+  return expression(
+    `%%t%%.node(%%language%%, %%type%%, %%children%%, %%properties%%, %%attributes%%)`,
+  )({
     t: bindings.t,
     language: t.stringLiteral(language),
     type: t.stringLiteral(type),
@@ -117,6 +132,11 @@ const generateNode = (node, exprs, bindings) => {
     properties: t.objectExpression(
       Object.entries(properties_).map(([key, value]) =>
         t.objectProperty(t.identifier(key), isArray(value) ? t.arrayExpression(value) : value),
+      ),
+    ),
+    attributes: t.objectExpression(
+      Object.entries(attributes).map(([key, value]) =>
+        t.objectProperty(t.identifier(key), getASTValue(value, exprs, bindings)),
       ),
     ),
   });
