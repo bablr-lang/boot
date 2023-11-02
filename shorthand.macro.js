@@ -65,8 +65,6 @@ const getASTValue = (v, exprs, bindings) => {
 const generateNodeChild = (child, bindings) => {
   if (child.type === 'Reference') {
     return expression(`%%t%%.ref\`${child.value}\``)({ t: bindings.t });
-  } else if (child.type === 'Gap') {
-    return expression(`%%t%%.gap\`${child.value}\``)({ t: bindings.t });
   } else if (child.type === 'String') {
     return expression(`%%t%%.str\`${child.value.replace(/\\/g, '\\\\')}\``)({ t: bindings.t });
   } else if (child.type === 'Trivia') {
@@ -95,30 +93,33 @@ const generateNode = (node, exprs, bindings) => {
   for (const child of children) {
     children_.push(generateNodeChild(child, bindings));
 
-    if (child.type === 'Reference' || child.type === 'Gap') {
+    if (child.type === 'Reference') {
       const path = child.value;
+      const { pathIsArray, pathName } = parsePath(path);
+      const resolved = resolver.get(path);
 
-      if (child.type === 'Gap') {
-        const { pathIsArray, pathName } = parsePath(path);
+      let embedded = resolved;
+      if (resolved) {
+        embedded = generateNode(resolved, exprs, bindings);
+      } else {
+        embedded = exprs.pop();
+        const { interpolateArray, interpolateLiteral } = bindings;
 
         if (pathIsArray) {
-          const expr = expression('%%interpolateArray%%(%%expr%%)')({
-            interpolateArray: bindings.interpolateArray,
-            expr: exprs.pop(),
+          embedded = expression('%%interpolateArray%%(%%embedded%%)')({
+            interpolateArray,
+            embedded,
           });
-
-          if (!properties_[pathName]) {
-            properties_[pathName] = [];
-          }
-
-          properties_[pathName].push(expr);
-        } else {
-          set(properties_, path, exprs.pop());
+        } else if (child.id.type === 'Literal') {
+          embedded = expression('%%interpolateLiteral%%(%%embedded%%, %%language%%)')({
+            interpolateLiteral,
+            embedded,
+            language: t.stringLiteral(language),
+          });
         }
-      } else {
-        let value = resolver.get(path);
-        set(properties_, path, generateNode(value, exprs, bindings));
       }
+
+      set(properties_, path, embedded);
     }
   }
 
@@ -176,6 +177,14 @@ const shorthandMacro = ({ references }) => {
       bindings.interpolateArray = addNamed(
         getTopScope(ref.scope).path,
         'interpolateArray',
+        '@bablr/boot-helpers/template',
+      );
+    }
+
+    if (!bindings.interpolateLiteral) {
+      bindings.interpolateLiteral = addNamed(
+        getTopScope(ref.scope).path,
+        'interpolateLiteral',
         '@bablr/boot-helpers/template',
       );
     }
