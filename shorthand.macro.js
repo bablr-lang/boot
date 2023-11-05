@@ -65,8 +65,8 @@ const getASTValue = (v, exprs, bindings) => {
 const generateNodeChild = (child, bindings) => {
   if (child.type === 'Reference') {
     return expression(`%%t%%.ref\`${child.value}\``)({ t: bindings.t });
-  } else if (child.type === 'String') {
-    return expression(`%%t%%.str\`${child.value.replace(/\\/g, '\\\\')}\``)({ t: bindings.t });
+  } else if (child.type === 'Literal') {
+    return expression(`%%t%%.lit\`${child.value.replace(/\\/g, '\\\\')}\``)({ t: bindings.t });
   } else if (child.type === 'Trivia') {
     return expression(`%%t%%.trivia\` \``)({ t: bindings.t });
   } else if (child.type === 'Escape') {
@@ -95,7 +95,7 @@ const generateNode = (node, exprs, bindings) => {
 
     if (child.type === 'Reference') {
       const path = child.value;
-      const { pathIsArray, pathName } = parsePath(path);
+      const { pathIsArray } = parsePath(path);
       const resolved = resolver.get(path);
 
       let embedded = resolved;
@@ -103,7 +103,7 @@ const generateNode = (node, exprs, bindings) => {
         embedded = generateNode(resolved, exprs, bindings);
       } else {
         embedded = exprs.pop();
-        const { interpolateArray, interpolateLiteral } = bindings;
+        const { interpolateArray, interpolateString } = bindings;
 
         if (pathIsArray) {
           embedded = expression('%%interpolateArray%%(%%embedded%%)')({
@@ -111,8 +111,8 @@ const generateNode = (node, exprs, bindings) => {
             embedded,
           });
         } else if (child.id.type === 'Literal') {
-          embedded = expression('%%interpolateLiteral%%(%%embedded%%, %%language%%)')({
-            interpolateLiteral,
+          embedded = expression('%%interpolateString%%(%%embedded%%, %%language%%)')({
+            interpolateString,
             embedded,
             language: t.stringLiteral(language),
           });
@@ -181,10 +181,10 @@ const shorthandMacro = ({ references }) => {
       );
     }
 
-    if (!bindings.interpolateLiteral) {
-      bindings.interpolateLiteral = addNamed(
+    if (!bindings.interpolateString) {
+      bindings.interpolateString = addNamed(
         getTopScope(ref.scope).path,
-        'interpolateLiteral',
+        'interpolateString',
         '@bablr/boot-helpers/template',
       );
     }
