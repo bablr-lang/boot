@@ -17,7 +17,7 @@
     "@babel/helper-module-imports": "^7.22.15",
     "@babel/template": "^7.22.15",
     "@babel/types": "7.23.0",
-    "@bablr/boot-helpers": "github:bablr-lang/boot-helpers#dfafc4a11c0e7c922285f814ea646719c9add213",
+    "@bablr/boot-helpers": "github:bablr-lang/boot-helpers#bd7e9c7d0ff05804d8aee8a8c1bf5f25189d9f10",
     "escape-string-regexp": "4.0.0",
     "iter-tools-es": "^7.5.3"
   },

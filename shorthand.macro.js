@@ -21,22 +21,20 @@ const isBoolean = (v) => typeof v === 'boolean';
 
 const isPlainObject = (v) => isObject(v) && !isArray(v);
 
-const set = (obj, path, value) => {
-  const { pathIsArray, pathName } = parsePath(path);
-
+const set = (obj, path, value, pathIsArray) => {
   if (pathIsArray) {
-    if (!obj[pathName]) {
-      obj[pathName] = [];
+    if (!obj[path]) {
+      obj[path] = [];
     }
 
-    if (!isArray(obj[pathName])) throw new Error('bad array value');
+    if (!isArray(obj[path])) throw new Error('bad array value');
 
-    obj[pathName].push(value);
+    obj[path].push(value);
   } else {
-    if (hasOwn(obj, pathName)) {
+    if (hasOwn(obj, path)) {
       throw new Error('duplicate child name');
     }
-    obj[pathName] = value;
+    obj[path] = value;
   }
 };
 
@@ -82,7 +80,7 @@ const generateNodeChild = (child, bindings) => {
 
 const generateNode = (node, exprs, bindings) => {
   const resolver = new PathResolver(node);
-  const { children, type, language, attributes } = node;
+  const { children, type, language, attributes, properties } = node;
   const properties_ = {};
   const children_ = [];
 
@@ -95,8 +93,8 @@ const generateNode = (node, exprs, bindings) => {
 
     if (child.type === 'Reference') {
       const path = child.value;
-      const { pathIsArray } = parsePath(path);
       const resolved = resolver.get(path);
+      const pathIsArray = isArray(properties[path]);
 
       let embedded = resolved;
       if (resolved) {
@@ -119,7 +117,7 @@ const generateNode = (node, exprs, bindings) => {
         }
       }
 
-      set(properties_, path, embedded);
+      set(properties_, path, embedded, pathIsArray);
     }
   }
 
