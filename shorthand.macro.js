@@ -10,7 +10,7 @@ const { TemplateParser } = require('./lib/miniparser.js');
 const i = require('./lib/languages/instruction.js');
 const re = require('./lib/languages/regex.js');
 const spam = require('./lib/languages/spamex.js');
-const { parsePath } = require('./lib/utils.js');
+const str = require('./lib/languages/string.js');
 const { addNamespace, addNamed } = require('@babel/helper-module-imports');
 const { PathResolver } = require('@bablr/boot-helpers/path');
 
@@ -108,11 +108,10 @@ const generateNode = (node, exprs, bindings) => {
             interpolateArray,
             embedded,
           });
-        } else if (child.id.type === 'Literal') {
-          embedded = expression('%%interpolateString%%(%%embedded%%, %%language%%)')({
+        } else if (language === 'String' && type === 'Content') {
+          embedded = expression('%%interpolateString%%(%%embedded%%)')({
             interpolateString,
             embedded,
-            language: t.stringLiteral(language),
           });
         }
       }
@@ -145,12 +144,14 @@ const languages = {
   i,
   re,
   spam,
+  str,
 };
 
 const topTypes = {
   i: 'Call',
   re: 'Pattern',
   spam: 'Matcher',
+  str: 'String',
 };
 
 const getTopScope = (scope) => {
@@ -164,7 +165,7 @@ const shorthandMacro = ({ references }) => {
 
   // decorator references
 
-  for (const ref of concat(references.i, references.spam, references.re)) {
+  for (const ref of concat(references.i, references.spam, references.re, references.str)) {
     if (!bindings.t) {
       bindings.t = addNamespace(getTopScope(ref.scope).path, '@bablr/boot-helpers/types', {
         nameHint: 't',
