@@ -11,6 +11,7 @@ const i = require('./lib/languages/instruction.js');
 const re = require('./lib/languages/regex.js');
 const spam = require('./lib/languages/spamex.js');
 const str = require('./lib/languages/string.js');
+const cstml = require('./lib/languages/cstml.js');
 const { addNamespace, addNamed } = require('@babel/helper-module-imports');
 const { PathResolver } = require('@bablr/boot-helpers/path');
 
@@ -104,11 +105,11 @@ const generateNode = (node, exprs, bindings) => {
         const { interpolateArray, interpolateString } = bindings;
 
         if (pathIsArray) {
-          embedded = expression('%%interpolateArray%%(%%embedded%%)')({
+          embedded = expression('[...%%interpolateArray%%(%%embedded%%)]')({
             interpolateArray,
             embedded,
-          });
-        } else if (language === 'String' && type === 'Content') {
+          }).elements[0];
+        } else if (language === 'String' && type === 'String') {
           embedded = expression('%%interpolateString%%(%%embedded%%)')({
             interpolateString,
             embedded,
@@ -145,6 +146,7 @@ const languages = {
   re,
   spam,
   str,
+  cst: cstml,
 };
 
 const topTypes = {
@@ -152,6 +154,7 @@ const topTypes = {
   re: 'Pattern',
   spam: 'Matcher',
   str: 'String',
+  cst: 'Node',
 };
 
 const getTopScope = (scope) => {
@@ -165,7 +168,13 @@ const shorthandMacro = ({ references }) => {
 
   // decorator references
 
-  for (const ref of concat(references.i, references.spam, references.re, references.str)) {
+  for (const ref of concat(
+    references.i,
+    references.spam,
+    references.re,
+    references.str,
+    references.cst,
+  )) {
     if (!bindings.t) {
       bindings.t = addNamespace(getTopScope(ref.scope).path, '@bablr/boot-helpers/types', {
         nameHint: 't',
@@ -208,7 +217,7 @@ const shorthandMacro = ({ references }) => {
       expressions.map(() => null),
     ).eval({ language: language.name, type });
 
-    taggedTemplate.replaceWith(generateNode(ast, expressions, bindings));
+    taggedTemplate.replaceWith(generateNode(ast, expressions.reverse(), bindings));
   }
 };
 
