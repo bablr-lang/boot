@@ -15,8 +15,8 @@ dependencies:
     specifier: 7.23.0
     version: 7.23.0
   '@bablr/boot-helpers':
-    specifier: github:bablr-lang/boot-helpers#1551598bc7257481089d06839eeec2e26885bbb2
-    version: github.com/bablr-lang/boot-helpers/1551598bc7257481089d06839eeec2e26885bbb2
+    specifier: 0.1.0
+    version: 0.1.0
   escape-string-regexp:
     specifier: 4.0.0
     version: 4.0.0
@@ -430,6 +430,11 @@ packages:
       '@babel/helper-string-parser': 7.22.5
       '@babel/helper-validator-identifier': 7.22.20
       to-fast-properties: 2.0.0
+
+  /@bablr/boot-helpers@0.1.0:
+    resolution: {integrity: sha512-lm13pIisM6vfRI2150ztqLfLDPxY7Fgzmgr4TfxFDBVUJxn0VmMLvV888jCTs0Xe8IwoanMmeavZUauHwt4i9Q==}
+    engines: {node: '>=12.0.0'}
+    dev: false
 
   /@eslint-community/eslint-utils@4.4.0(eslint@8.50.0):
     resolution: {integrity: sha512-1/sA4dwrzBAyeUoQ6oxahHKmrZvsnLCg4RfxW3ZFGGmQkSNQPFNLV9CUEFQP1x9EYXHTo5p6xdhZM1Ne9p/AfA==}
@@ -1359,6 +1364,7 @@ packages:
   /fill-range@7.0.1:
     resolution: {integrity: sha512-qOo9F+dMUmC2Lcb4BbVvnKJxTPjCm+RRpe4gDuGrzkL7mEVl/djYSu2OdQ2Pa302N4oqkSg9ir6jaLWJ2USVpQ==}
     engines: {node: '>=8'}
+    requiresBuild: true
     dependencies:
       to-regex-range: 5.0.1
     dev: true
@@ -1667,6 +1673,7 @@ packages:
   /is-number@7.0.0:
     resolution: {integrity: sha512-41Cifkg6e8TylSpdtTpeLVMqvSBEVzTttHvERD741+pnZ8ANv0004MRL43QKPDlK9cGvNp6NZWZUBlbGXYxxng==}
     engines: {node: '>=0.12.0'}
+    requiresBuild: true
     dev: true
 
   /is-path-inside@3.0.3:
@@ -2281,6 +2288,7 @@ packages:
   /to-regex-range@5.0.1:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
     engines: {node: '>=8.0'}
+    requiresBuild: true
     dependencies:
       is-number: 7.0.0
     dev: true
@@ -2433,6 +2441,7 @@ packages:
     name: '@bablr/boot-helpers'
     version: 0.0.0
     engines: {node: '>=12.0.0'}
+    dev: true
 
   github.com/bablr-lang/boot/45d9f4a10d18abc2e07619d39b8f87ebc6c9bacf:
     resolution: {tarball: https://codeload.github.com/bablr-lang/boot/tar.gz/45d9f4a10d18abc2e07619d39b8f87ebc6c9bacf}
