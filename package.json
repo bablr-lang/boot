@@ -10,7 +10,8 @@
     "./shorthand.macro": "./shorthand.macro.js"
   },
   "files": [
-    "lib/**/*.js"
+    "lib/**/*.js",
+    "shorthand.macro.js"
   ],
   "sideEffects": false,
   "dependencies": {
