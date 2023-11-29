@@ -15,8 +15,8 @@ dependencies:
     specifier: 7.23.0
     version: 7.23.0
   '@bablr/boot-helpers':
-    specifier: 0.1.0
-    version: 0.1.0
+    specifier: 0.1.1
+    version: 0.1.1
   escape-string-regexp:
     specifier: 4.0.0
     version: 4.0.0
@@ -431,8 +431,8 @@ packages:
       '@babel/helper-validator-identifier': 7.22.20
       to-fast-properties: 2.0.0
 
-  /@bablr/boot-helpers@0.1.0:
-    resolution: {integrity: sha512-lm13pIisM6vfRI2150ztqLfLDPxY7Fgzmgr4TfxFDBVUJxn0VmMLvV888jCTs0Xe8IwoanMmeavZUauHwt4i9Q==}
+  /@bablr/boot-helpers@0.1.1:
+    resolution: {integrity: sha512-2F9ewTAQjyRkXAtYj9VLAMV1e0WDRU5pTt/qKpMRdMkJoWx4ejNYGk6rBNgI9JztvDUiEPZAPk9nbX7SwQn15w==}
     engines: {node: '>=12.0.0'}
     dev: false
 
