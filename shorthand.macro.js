@@ -11,6 +11,7 @@ const i = require('./lib/languages/instruction.js');
 const re = require('./lib/languages/regex.js');
 const spam = require('./lib/languages/spamex.js');
 const str = require('./lib/languages/string.js');
+const num = require('./lib/languages/number.js');
 const cstml = require('./lib/languages/cstml.js');
 const { addNamespace, addNamed } = require('@babel/helper-module-imports');
 const { PathResolver } = require('@bablr/boot-helpers/path');
@@ -146,6 +147,7 @@ const languages = {
   re,
   spam,
   str,
+  num,
   cst: cstml,
 };
 
@@ -154,6 +156,7 @@ const topTypes = {
   re: 'Pattern',
   spam: 'Matcher',
   str: 'String',
+  num: 'Number',
   cst: 'Node',
 };
 
@@ -173,6 +176,7 @@ const shorthandMacro = ({ references }) => {
     references.spam,
     references.re,
     references.str,
+    references.num,
     references.cst,
   )) {
     if (!bindings.t) {
