@@ -23,20 +23,21 @@ const isBoolean = (v) => typeof v === 'boolean';
 
 const isPlainObject = (v) => isObject(v) && !isArray(v);
 
-const set = (obj, path, value, pathIsArray) => {
+const set = (obj, path, value) => {
+  const { pathName, pathIsArray } = path;
   if (pathIsArray) {
-    if (!obj[path]) {
-      obj[path] = [];
+    if (!obj[pathName]) {
+      obj[pathName] = [];
     }
 
-    if (!isArray(obj[path])) throw new Error('bad array value');
+    if (!isArray(obj[pathName])) throw new Error('bad array value');
 
-    obj[path].push(value);
+    obj[pathName].push(value);
   } else {
-    if (hasOwn(obj, path)) {
+    if (hasOwn(obj, pathName)) {
       throw new Error('duplicate child name');
     }
-    obj[path] = value;
+    obj[pathName] = value;
   }
 };
 
@@ -64,7 +65,9 @@ const getASTValue = (v, exprs, bindings) => {
 
 const generateNodeChild = (child, bindings) => {
   if (child.type === 'Reference') {
-    return expression(`%%t%%.ref\`${child.value}\``)({ t: bindings.t });
+    const { pathName, pathIsArray } = child.value;
+    const printedRef = pathIsArray ? `${pathName}[]` : pathName;
+    return expression(`%%t%%.ref\`${printedRef}\``)({ t: bindings.t });
   } else if (child.type === 'Literal') {
     return expression(`%%t%%.lit\`${child.value.replace(/\\/g, '\\\\')}\``)({ t: bindings.t });
   } else if (child.type === 'Trivia') {
@@ -82,7 +85,7 @@ const generateNodeChild = (child, bindings) => {
 
 const generateNode = (node, exprs, bindings) => {
   const resolver = new PathResolver(node);
-  const { children, type, language, attributes, properties } = node;
+  const { children, type, language, attributes } = node;
   const properties_ = {};
   const children_ = [];
 
@@ -95,8 +98,8 @@ const generateNode = (node, exprs, bindings) => {
 
     if (child.type === 'Reference') {
       const path = child.value;
+      const { pathIsArray } = path;
       const resolved = resolver.get(path);
-      const pathIsArray = isArray(properties[path]);
 
       let embedded = resolved;
       if (resolved) {
@@ -118,7 +121,7 @@ const generateNode = (node, exprs, bindings) => {
         }
       }
 
-      set(properties_, path, embedded, pathIsArray);
+      set(properties_, path, embedded);
     }
   }
 
@@ -157,7 +160,7 @@ const topTypes = {
   spam: 'Matcher',
   str: 'String',
   num: 'Number',
-  cst: 'Node',
+  cst: 'Fragment',
 };
 
 const getTopScope = (scope) => {
