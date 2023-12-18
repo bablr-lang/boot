@@ -63,20 +63,34 @@ const getASTValue = (v, exprs, bindings) => {
     : generateNode(v, exprs, bindings);
 };
 
+const escapeReplacer = (esc) => {
+  if (esc === '\r') {
+    return '\\r';
+  } else if (esc === '\n') {
+    return '\\n';
+  } else if (esc === '\0') {
+    return '\\0';
+  } else {
+    return `\\${esc}`;
+  }
+};
+const printTemplateString = (str) => {
+  return `\`${str.replace(/[`\\\0\r\n]/g, escapeReplacer)}\``;
+};
+
 const generateNodeChild = (child, bindings) => {
   if (child.type === 'Reference') {
     const { pathName, pathIsArray } = child.value;
     const printedRef = pathIsArray ? `${pathName}[]` : pathName;
     return expression(`%%t%%.ref\`${printedRef}\``)({ t: bindings.t });
   } else if (child.type === 'Literal') {
-    return expression(`%%t%%.lit\`${child.value.replace(/\\/g, '\\\\')}\``)({ t: bindings.t });
+    return expression(`%%t%%.lit${printTemplateString(child.value)}`)({ t: bindings.t });
   } else if (child.type === 'Trivia') {
-    return expression(`%%t%%.trivia\` \``)({ t: bindings.t });
+    return expression(`%%t%%.trivia${printTemplateString(child.value)}`)({ t: bindings.t });
   } else if (child.type === 'Escape') {
-    return expression(`%%t%%.esc(%%cooked%%, %%raw%%)`)({
+    const {cooked, raw} = child.value
+    return expression(`%%t%%.esc(${printTemplateString(raw)}, ${printTemplateString(cooked)})`)({
       t: bindings.t,
-      cooked: child.cooked,
-      raw: child.raw,
     });
   } else {
     throw new Error(`Unknown child type ${child.type}`);
@@ -159,7 +173,7 @@ const topTypes = {
   re: 'Pattern',
   spam: 'Matcher',
   str: 'String',
-  num: 'Number',
+  num: 'Integer',
   cst: 'Fragment',
 };
 
