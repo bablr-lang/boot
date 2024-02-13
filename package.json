@@ -18,7 +18,8 @@
     "@babel/helper-module-imports": "^7.22.15",
     "@babel/template": "^7.22.15",
     "@babel/types": "7.23.0",
-    "@bablr/boot-helpers": "0.1.2",
+    "@bablr/agast-vm-helpers": "github:bablr-lang/agast-vm-helpers#bogus",
+    "bablr": "github:bablr-lang/bablr#bogus",
     "escape-string-regexp": "4.0.0",
     "iter-tools-es": "^7.5.3"
   },

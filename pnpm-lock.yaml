@@ -14,9 +14,12 @@ dependencies:
   '@babel/types':
     specifier: 7.23.0
     version: 7.23.0
-  '@bablr/boot-helpers':
-    specifier: 0.1.2
-    version: 0.1.2
+  '@bablr/agast-vm-helpers':
+    specifier: github:bablr-lang/agast-vm-helpers#bogus
+    version: link:../agast-vm-helpers
+  bablr:
+    specifier: github:bablr-lang/bablr#bogus
+    version: link:../bablr
   escape-string-regexp:
     specifier: 4.0.0
     version: 4.0.0
@@ -430,11 +433,6 @@ packages:
       '@babel/helper-string-parser': 7.22.5
       '@babel/helper-validator-identifier': 7.22.20
       to-fast-properties: 2.0.0
-
-  /@bablr/boot-helpers@0.1.2:
-    resolution: {integrity: sha512-v0QAMuaQJgYsclldRG9hsJFHPw7YJb0JVP2g4cL30N0T/AmNrUfqj/jwf+kMUl6lVSHIZNPc8pwMAVXPC2niFg==}
-    engines: {node: '>=12.0.0'}
-    dev: false
 
   /@eslint-community/eslint-utils@4.4.0(eslint@8.50.0):
     resolution: {integrity: sha512-1/sA4dwrzBAyeUoQ6oxahHKmrZvsnLCg4RfxW3ZFGGmQkSNQPFNLV9CUEFQP1x9EYXHTo5p6xdhZM1Ne9p/AfA==}

@@ -6,15 +6,17 @@ const isNull = require('iter-tools-es/methods/is-null');
 const isString = require('iter-tools-es/methods/is-string');
 const concat = require('iter-tools-es/methods/concat');
 const { createMacro } = require('babel-plugin-macros');
-const { TemplateParser } = require('./lib/miniparser.js');
-const i = require('./lib/languages/instruction.js');
-const re = require('./lib/languages/regex.js');
-const spam = require('./lib/languages/spamex.js');
-const str = require('./lib/languages/string.js');
-const num = require('./lib/languages/number.js');
-const cstml = require('./lib/languages/cstml.js');
+const i = require('@bablr/language-bablr-vm-instruction');
+const re = require('@bablr/language-regex-vm-pattern');
+const spam = require('@bablr/language-spamex');
+const str = require('@bablr/language-cstml-string');
+// const num = require('@bablr/language-number');
+const cstml = require('@bablr/language-cstml');
 const { addNamespace, addNamed } = require('@babel/helper-module-imports');
-const { PathResolver } = require('@bablr/boot-helpers/path');
+const { PathResolver } = require('@bablr/agast-helpers/path');
+const { sourceFromQuasis } = require('@bablr/agast-helpers/source');
+const { buildSpamMatcher } = require('@bablr/agast-vm-helpers');
+const { streamParseSync } = require('bablr');
 
 const { hasOwn } = Object;
 const { isArray } = Array;
@@ -85,13 +87,6 @@ const generateNodeChild = (child, bindings) => {
     return expression(`%%t%%.ref\`${printedRef}\``)({ t: bindings.t });
   } else if (child.type === 'Literal') {
     return expression(`%%t%%.lit${printTemplateString(child.value)}`)({ t: bindings.t });
-  } else if (child.type === 'Trivia') {
-    return expression(`%%t%%.trivia${printTemplateString(child.value)}`)({ t: bindings.t });
-  } else if (child.type === 'Escape') {
-    const {cooked, raw} = child.value
-    return expression(`%%t%%.esc(${printTemplateString(raw)}, ${printTemplateString(cooked)})`)({
-      t: bindings.t,
-    });
   } else {
     throw new Error(`Unknown child type ${child.type}`);
   }
@@ -139,24 +134,33 @@ const generateNode = (node, exprs, bindings) => {
     }
   }
 
-  return expression(
-    `%%t%%.node(%%language%%, %%type%%, %%children%%, %%properties%%, %%attributes%%)`,
-  )({
-    t: bindings.t,
-    language: t.stringLiteral(language),
-    type: t.stringLiteral(type),
-    children: t.arrayExpression(children_),
-    properties: t.objectExpression(
-      Object.entries(properties_).map(([key, value]) =>
-        t.objectProperty(t.identifier(key), isArray(value) ? t.arrayExpression(value) : value),
+  if (type === 'Punctuator' || type === 'Keyword') {
+    return expression(`%%t%%.s_node(%%language%%, %%type%%, %%value%%)`)({
+      t: bindings.t,
+      language: t.stringLiteral(language),
+      type: t.stringLiteral(type),
+      value: t.stringLiteral(children[0].value),
+    });
+  } else {
+    return expression(
+      `%%t%%.node(%%language%%, %%type%%, %%children%%, %%properties%%, %%attributes%%)`,
+    )({
+      t: bindings.t,
+      language: t.stringLiteral(language),
+      type: t.stringLiteral(type),
+      children: t.arrayExpression(children_),
+      properties: t.objectExpression(
+        Object.entries(properties_).map(([key, value]) =>
+          t.objectProperty(t.identifier(key), isArray(value) ? t.arrayExpression(value) : value),
+        ),
       ),
-    ),
-    attributes: t.objectExpression(
-      Object.entries(attributes).map(([key, value]) =>
-        t.objectProperty(t.identifier(key), getASTValue(value, exprs, bindings)),
+      attributes: t.objectExpression(
+        Object.entries(attributes).map(([key, value]) =>
+          t.objectProperty(t.identifier(key), getASTValue(value, exprs, bindings)),
+        ),
       ),
-    ),
-  });
+    });
+  }
 };
 
 const languages = {
@@ -164,7 +168,7 @@ const languages = {
   re,
   spam,
   str,
-  num,
+  // num,
   cst: cstml,
 };
 
@@ -197,26 +201,19 @@ const shorthandMacro = ({ references }) => {
     references.cst,
   )) {
     if (!bindings.t) {
-      bindings.t = addNamespace(getTopScope(ref.scope).path, '@bablr/boot-helpers/types', {
+      bindings.t = addNamespace(getTopScope(ref.scope).path, '@bablr/helpers/shorthand', {
         nameHint: 't',
       });
     }
 
-    if (!bindings.interpolateArray) {
-      bindings.interpolateArray = addNamed(
-        getTopScope(ref.scope).path,
-        'interpolateArray',
-        '@bablr/boot-helpers/template',
-      );
-    }
+    const buildHelperBinding = (module_, name) => {
+      if (!bindings[name]) {
+        bindings[name] = addNamed(getTopScope(ref.scope).path, name, module_);
+      }
+    };
 
-    if (!bindings.interpolateString) {
-      bindings.interpolateString = addNamed(
-        getTopScope(ref.scope).path,
-        'interpolateString',
-        '@bablr/boot-helpers/template',
-      );
-    }
+    buildHelperBinding('@bablr/helpers/template', 'interpolateArray');
+    buildHelperBinding('@bablr/helpers/template', 'interpolateString');
 
     const taggedTemplate =
       ref.parentPath.type === 'MemberExpression' ? ref.parentPath.parentPath : ref.parentPath;
@@ -232,11 +229,11 @@ const shorthandMacro = ({ references }) => {
 
     if (!language) throw new Error();
 
-    const ast = new TemplateParser(
+    const ast = streamParseSync(
       language,
-      quasis.map((q) => q.value.raw),
-      expressions.map(() => null),
-    ).eval({ language: language.name, type });
+      sourceFromQuasis(quasis.map((q) => q.value.raw)),
+      buildSpamMatcher(language, type),
+    );
 
     taggedTemplate.replaceWith(generateNode(ast, expressions.reverse(), bindings));
   }
