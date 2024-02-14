@@ -19,4 +19,4 @@ This allows us to do the following:
   - Define non-core grammar in terms of template tags like `` i`eat(' ')` ``
     - These result of evaluating these template tags is a parse tree not a string
 - Execute the grammar, using the helper VM to parse template tag instructions on the fly
-  - cache parsed instructions when they are static
+  - Cache parsed instructions when they are static using `WeakMap` using `quasis` (first) argument to the template string iterpolator as the cache key, a trick that is possible because `quasis` is an array (a valid `WeakMap` key) whose identity does not change between subsequent invocations. This is how a pattern that looks slow can be fast! Using template string interpolation, e.g. `` i`eat(${something})` `` will prevent caching.
