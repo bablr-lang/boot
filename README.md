@@ -17,5 +17,6 @@ This allows us to do the following:
 - Import the "core grammars" compiled for the next vm, and the next VM into the helpers
 - Import template tags defined by the helpers into non-core grammars
   - Define non-core grammar in terms of template tags like `` i`eat(' ')` ``
+    - These result of evaluating these template tags is a parse tree not a string
 - Execute the grammar, using the helper VM to parse template tag instructions on the fly
   - cache parsed instructions when they are static
