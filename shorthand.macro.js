@@ -15,6 +15,7 @@ const num = require('./lib/languages/number.js');
 const cstml = require('./lib/languages/cstml.js');
 const { addNamespace, addNamed } = require('@babel/helper-module-imports');
 const { PathResolver } = require('@bablr/boot-helpers/path');
+const { buildLiteral, buildAttributes } = require('./lib/builders');
 
 const { hasOwn } = Object;
 const { isArray } = Array;
@@ -63,34 +64,40 @@ const getASTValue = (v, exprs, bindings) => {
     : generateNode(v, exprs, bindings);
 };
 
-const escapeReplacer = (esc) => {
-  if (esc === '\r') {
-    return '\\r';
-  } else if (esc === '\n') {
-    return '\\n';
-  } else if (esc === '\0') {
-    return '\\0';
-  } else {
-    return `\\${esc}`;
-  }
-};
-const printTemplateString = (str) => {
-  return `\`${str.replace(/[`\\\0\r\n]/g, escapeReplacer)}\``;
-};
-
-const generateNodeChild = (child, bindings) => {
+const generateNodeChild = (child, exprs, bindings) => {
   if (child.type === 'Reference') {
     const { pathName, pathIsArray } = child.value;
     const printedRef = pathIsArray ? `${pathName}[]` : pathName;
     return expression(`%%t%%.ref\`${printedRef}\``)({ t: bindings.t });
   } else if (child.type === 'Literal') {
-    return expression(`%%t%%.lit${printTemplateString(child.value)}`)({ t: bindings.t });
-  } else if (child.type === 'Trivia') {
-    return expression(`%%t%%.trivia${printTemplateString(child.value)}`)({ t: bindings.t });
-  } else if (child.type === 'Escape') {
-    const {cooked, raw} = child.value
-    return expression(`%%t%%.esc(${printTemplateString(raw)}, ${printTemplateString(cooked)})`)({
+    return expression(`%%t%%.lit(%%value%%)`)({
       t: bindings.t,
+      value: getASTValue(child.value, exprs, bindings),
+    });
+  } else if (child.type === 'Trivia') {
+    return expression(
+      `%%t%%.t_node('Space', 'Space', %%children%%, %%properties%%, %%attributes%%)`,
+    )({
+      t: bindings.t,
+      children: [getASTValue(buildLiteral(child.value), exprs, bindings)],
+      properties: getASTValue({}, exprs, bindings),
+      attributes: getASTValue(buildAttributes({}), exprs, bindings),
+    });
+  } else if (child.type === 'Escape') {
+    const { cooked, raw } = child.value;
+    const children = [getASTValue(buildLiteral(raw), exprs, bindings)];
+
+    return expression(
+      `%%t%%.s_e_node('Escape', 'SymbolicEscape', %%children%%, %%properties%%, %%attributes%%)`,
+    )({
+      t: bindings.t,
+      children,
+      properties: getASTValue({}, exprs, bindings),
+      attributes: t.objectExpression(
+        Object.entries({ cooked }).map(([key, value]) =>
+          t.objectProperty(t.identifier(key), getASTValue(value, exprs, bindings)),
+        ),
+      ),
     });
   } else {
     throw new Error(`Unknown child type ${child.type}`);
@@ -100,63 +107,76 @@ const generateNodeChild = (child, bindings) => {
 const generateNode = (node, exprs, bindings) => {
   const resolver = new PathResolver(node);
   const { children, type, language, attributes } = node;
-  const properties_ = {};
-  const children_ = [];
 
-  if (!children) {
-    throw new Error();
-  }
+  if (
+    (children.length === 1 && children[0].type === 'Literal' && type === 'Punctuator') ||
+    type === 'Keyword'
+  ) {
+    return expression(`%%t%%.s_node(%%language%%, %%type%%, %%value%%)`)({
+      t: bindings.t,
+      language: t.stringLiteral(language),
+      type: t.stringLiteral(type),
+      value: t.stringLiteral(children[0].value),
+    });
+  } else {
+    const properties_ = {};
+    const children_ = [];
 
-  for (const child of children) {
-    children_.push(generateNodeChild(child, bindings));
-
-    if (child.type === 'Reference') {
-      const path = child.value;
-      const { pathIsArray } = path;
-      const resolved = resolver.get(path);
-
-      let embedded = resolved;
-      if (resolved) {
-        embedded = generateNode(resolved, exprs, bindings);
-      } else {
-        embedded = exprs.pop();
-        const { interpolateArray, interpolateString } = bindings;
-
-        if (pathIsArray) {
-          embedded = expression('[...%%interpolateArray%%(%%embedded%%)]')({
-            interpolateArray,
-            embedded,
-          }).elements[0];
-        } else if (language === 'String' && type === 'String') {
-          embedded = expression('%%interpolateString%%(%%embedded%%)')({
-            interpolateString,
-            embedded,
-          });
-        }
-      }
-
-      set(properties_, path, embedded);
+    if (!children) {
+      throw new Error();
     }
-  }
 
-  return expression(
-    `%%t%%.node(%%language%%, %%type%%, %%children%%, %%properties%%, %%attributes%%)`,
-  )({
-    t: bindings.t,
-    language: t.stringLiteral(language),
-    type: t.stringLiteral(type),
-    children: t.arrayExpression(children_),
-    properties: t.objectExpression(
-      Object.entries(properties_).map(([key, value]) =>
-        t.objectProperty(t.identifier(key), isArray(value) ? t.arrayExpression(value) : value),
+    for (const child of children) {
+      children_.push(generateNodeChild(child, exprs, bindings));
+
+      if (child.type === 'Reference') {
+        const path = child.value;
+        const { pathIsArray } = path;
+        const resolved = resolver.get(path);
+
+        let embedded = resolved;
+        if (resolved) {
+          embedded = generateNode(resolved, exprs, bindings);
+        } else {
+          embedded = exprs.pop();
+          const { interpolateArray, interpolateString } = bindings;
+
+          if (pathIsArray) {
+            embedded = expression('[...%%interpolateArray%%(%%embedded%%)]')({
+              interpolateArray,
+              embedded,
+            }).elements[0];
+          } else if (language === 'String' && type === 'String') {
+            embedded = expression('%%interpolateString%%(%%embedded%%)')({
+              interpolateString,
+              embedded,
+            });
+          }
+        }
+
+        set(properties_, path, embedded);
+      }
+    }
+
+    return expression(
+      `%%t%%.node(%%language%%, %%type%%, %%children%%, %%properties%%, %%attributes%%)`,
+    )({
+      t: bindings.t,
+      language: t.stringLiteral(language),
+      type: t.stringLiteral(type),
+      children: t.arrayExpression(children_),
+      properties: t.objectExpression(
+        Object.entries(properties_).map(([key, value]) =>
+          t.objectProperty(t.identifier(key), isArray(value) ? t.arrayExpression(value) : value),
+        ),
       ),
-    ),
-    attributes: t.objectExpression(
-      Object.entries(attributes).map(([key, value]) =>
-        t.objectProperty(t.identifier(key), getASTValue(value, exprs, bindings)),
+      attributes: t.objectExpression(
+        Object.entries(attributes).map(([key, value]) =>
+          t.objectProperty(t.identifier(key), getASTValue(value, exprs, bindings)),
+        ),
       ),
-    ),
-  });
+    });
+  }
 };
 
 const languages = {
@@ -197,7 +217,7 @@ const shorthandMacro = ({ references }) => {
     references.cst,
   )) {
     if (!bindings.t) {
-      bindings.t = addNamespace(getTopScope(ref.scope).path, '@bablr/boot-helpers/types', {
+      bindings.t = addNamespace(getTopScope(ref.scope).path, '@bablr/agast-helpers/shorthand', {
         nameHint: 't',
       });
     }
@@ -206,7 +226,7 @@ const shorthandMacro = ({ references }) => {
       bindings.interpolateArray = addNamed(
         getTopScope(ref.scope).path,
         'interpolateArray',
-        '@bablr/boot-helpers/template',
+        '@bablr/agast-helpers/template',
       );
     }
 
@@ -214,7 +234,7 @@ const shorthandMacro = ({ references }) => {
       bindings.interpolateString = addNamed(
         getTopScope(ref.scope).path,
         'interpolateString',
-        '@bablr/boot-helpers/template',
+        '@bablr/agast-helpers/template',
       );
     }
 
