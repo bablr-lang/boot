@@ -75,29 +75,35 @@ const generateNodeChild = (child, exprs, bindings) => {
       value: getASTValue(child.value, exprs, bindings),
     });
   } else if (child.type === 'Trivia') {
-    return expression(
-      `%%t%%.t_node('Space', 'Space', %%children%%, %%properties%%, %%attributes%%)`,
-    )({
+    return expression(`%%t%%.embedded(%%node%%)`)({
       t: bindings.t,
-      children: [getASTValue(buildLiteral(child.value), exprs, bindings)],
-      properties: getASTValue({}, exprs, bindings),
-      attributes: getASTValue(buildAttributes({}), exprs, bindings),
+      node: expression(
+        `%%t%%.t_node('Space', 'Space', %%children%%, %%properties%%, %%attributes%%)`,
+      )({
+        t: bindings.t,
+        children: getASTValue([buildLiteral(child.value)], exprs, bindings),
+        properties: getASTValue({}, exprs, bindings),
+        attributes: getASTValue(buildAttributes({}), exprs, bindings),
+      }),
     });
   } else if (child.type === 'Escape') {
     const { cooked, raw } = child.value;
-    const children = [getASTValue(buildLiteral(raw), exprs, bindings)];
+    const children = getASTValue([buildLiteral(raw)], exprs, bindings);
 
-    return expression(
-      `%%t%%.s_e_node('Escape', 'SymbolicEscape', %%children%%, %%properties%%, %%attributes%%)`,
-    )({
+    return expression(`%%t%%.embedded(%%node%%)`)({
       t: bindings.t,
-      children,
-      properties: getASTValue({}, exprs, bindings),
-      attributes: t.objectExpression(
-        Object.entries({ cooked }).map(([key, value]) =>
-          t.objectProperty(t.identifier(key), getASTValue(value, exprs, bindings)),
+      node: expression(
+        `%%t%%.s_e_node('Escape', 'SymbolicEscape', %%children%%, %%properties%%, %%attributes%%)`,
+      )({
+        t: bindings.t,
+        children,
+        properties: getASTValue({}, exprs, bindings),
+        attributes: t.objectExpression(
+          Object.entries({ cooked }).map(([key, value]) =>
+            t.objectProperty(t.identifier(key), getASTValue(value, exprs, bindings)),
+          ),
         ),
-      ),
+      }),
     });
   } else {
     throw new Error(`Unknown child type ${child.type}`);
