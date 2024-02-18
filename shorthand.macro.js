@@ -15,7 +15,7 @@ const num = require('./lib/languages/number.js');
 const cstml = require('./lib/languages/cstml.js');
 const { addNamespace, addNamed } = require('@babel/helper-module-imports');
 const { PathResolver } = require('@bablr/boot-helpers/path');
-const { buildLiteral, buildAttributes } = require('./lib/builders');
+const { buildLiteral, buildAttributes, buildSpace } = require('./lib/builders');
 
 const { hasOwn } = Object;
 const { isArray } = Array;
@@ -23,6 +23,8 @@ const isNumber = (v) => typeof v === 'number';
 const isBoolean = (v) => typeof v === 'boolean';
 
 const isPlainObject = (v) => isObject(v) && !isArray(v);
+
+const printRef = (ref) => (ref.pathIsArray ? `${ref.pathName}[]` : ref.pathName);
 
 const set = (obj, path, value) => {
   const { pathName, pathIsArray } = path;
@@ -66,9 +68,7 @@ const getASTValue = (v, exprs, bindings) => {
 
 const generateNodeChild = (child, exprs, bindings) => {
   if (child.type === 'Reference') {
-    const { pathName, pathIsArray } = child.value;
-    const printedRef = pathIsArray ? `${pathName}[]` : pathName;
-    return expression(`%%t%%.ref\`${printedRef}\``)({ t: bindings.t });
+    return expression(`%%t%%.ref\`${printRef(child.value)}\``)({ t: bindings.t });
   } else if (child.type === 'Literal') {
     return expression(`%%t%%.lit(%%value%%)`)({
       t: bindings.t,
@@ -133,34 +133,64 @@ const generateNode = (node, exprs, bindings) => {
     }
 
     for (const child of children) {
-      children_.push(generateNodeChild(child, exprs, bindings));
-
       if (child.type === 'Reference') {
         const path = child.value;
-        const { pathIsArray } = path;
+        const { pathIsArray, pathName } = path;
         const resolved = resolver.get(path);
 
-        let embedded = resolved;
         if (resolved) {
-          embedded = generateNode(resolved, exprs, bindings);
+          set(properties_, path, generateNode(resolved, exprs, bindings));
+          children_.push(generateNodeChild(child, exprs, bindings));
         } else {
-          embedded = exprs.pop();
-          const { interpolateArray, interpolateString } = bindings;
+          // gap
+          const expr = exprs.pop();
+          const { interpolateArray, interpolateArrayChildren, interpolateString } = bindings;
 
           if (pathIsArray) {
-            embedded = expression('[...%%interpolateArray%%(%%embedded%%)]')({
-              interpolateArray,
-              embedded,
-            }).elements[0];
+            set(
+              properties_,
+              path,
+              expression('[...%%interpolateArray%%(%%expr%%)]')({
+                interpolateArray,
+                expr,
+              }).elements[0],
+            );
+
+            children_.push(
+              t.spreadElement(
+                expression('%%interpolateArrayChildren%%(%%expr%%, %%ref%%, %%sep%%)')({
+                  interpolateArrayChildren,
+                  expr,
+                  ref: expression(`%%t%%.ref\`${printRef(child.value)}\``)({ t: bindings.t }),
+
+                  // Really really awful unsafe-as-heck hack, to be removed ASAP
+                  // Fixing this requires having interpolation happen during parsing
+                  // That way the grammar can deal with the separators!
+                  sep: expression(
+                    "t.t_node('Comment', null, [t.t_node('Space', 'Space', [t.lit(' ')])])",
+                  )(),
+                }),
+              ),
+            );
           } else if (language === 'String' && type === 'String') {
-            embedded = expression('%%interpolateString%%(%%embedded%%)')({
-              interpolateString,
-              embedded,
-            });
+            set(
+              properties_,
+              path,
+              expression('%%interpolateString%%(%%expr%%)')({
+                interpolateString,
+                expr,
+              }),
+            );
+
+            children_.push(generateNodeChild(child, exprs, bindings));
+          } else {
+            set(properties_, path, expr);
+
+            children_.push(generateNodeChild(child, exprs, bindings));
           }
         }
-
-        set(properties_, path, embedded);
+      } else {
+        children_.push(generateNodeChild(child, exprs, bindings));
       }
     }
 
@@ -232,6 +262,14 @@ const shorthandMacro = ({ references }) => {
       bindings.interpolateArray = addNamed(
         getTopScope(ref.scope).path,
         'interpolateArray',
+        '@bablr/agast-helpers/template',
+      );
+    }
+
+    if (!bindings.interpolateArrayChildren) {
+      bindings.interpolateArrayChildren = addNamed(
+        getTopScope(ref.scope).path,
+        'interpolateArrayChildren',
         '@bablr/agast-helpers/template',
       );
     }
