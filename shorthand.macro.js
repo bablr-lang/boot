@@ -15,7 +15,7 @@ const num = require('./lib/languages/number.js');
 const cstml = require('./lib/languages/cstml.js');
 const { addNamespace, addNamed } = require('@babel/helper-module-imports');
 const { PathResolver } = require('@bablr/boot-helpers/path');
-const { buildLiteral, buildAttributes, buildSpace } = require('./lib/builders');
+const { buildLiteral, buildAttributes } = require('./lib/builders');
 
 const { hasOwn } = Object;
 const { isArray } = Array;
@@ -167,7 +167,7 @@ const generateNode = (node, exprs, bindings) => {
                   // Fixing this requires having interpolation happen during parsing
                   // That way the grammar can deal with the separators!
                   sep: expression(
-                    "t.t_node('Comment', null, [t.t_node('Space', 'Space', [t.lit(' ')])])",
+                    "t.embedded(t.t_node('Comment', null, [t.embedded(t.t_node('Space', 'Space', [t.lit(' ')]))]))",
                   )(),
                 }),
               ),
