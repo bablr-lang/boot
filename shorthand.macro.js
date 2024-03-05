@@ -167,8 +167,8 @@ const generateNode = (node, exprs, bindings) => {
                   // Fixing this requires having interpolation happen during parsing
                   // That way the grammar can deal with the separators!
                   sep: expression(
-                    "t.embedded(t.t_node('Comment', null, [t.embedded(t.t_node('Space', 'Space', [t.lit(' ')]))]))",
-                  )(),
+                    "%%t%%.embedded(%%t%%.t_node('Comment', null, [%%t%%.embedded(%%t%%.t_node('Space', 'Space', [%%t%%.lit(' ')]))]))",
+                  )({ t: bindings.t }),
                 }),
               ),
             );
