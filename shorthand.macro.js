@@ -115,8 +115,9 @@ const generateNode = (node, exprs, bindings) => {
   const { children, type, language, attributes } = node;
 
   if (
-    (children.length === 1 && children[0].type === 'Literal' && type === 'Punctuator') ||
-    type === 'Keyword'
+    children.length === 1 &&
+    children[0].type === 'Literal' &&
+    (type === 'Punctuator' || type === 'Keyword')
   ) {
     return expression(`%%t%%.s_node(%%language%%, %%type%%, %%value%%)`)({
       t: bindings.t,
