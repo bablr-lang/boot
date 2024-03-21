@@ -26,6 +26,8 @@ const isPlainObject = (v) => isObject(v) && !isArray(v);
 
 const printRef = (ref) => (ref.pathIsArray ? `${ref.pathName}[]` : ref.pathName);
 
+const mapLanguage = (lang) => (lang === 'String' ? 'CSTML' : lang);
+
 const set = (obj, path, value) => {
   const { pathName, pathIsArray } = path;
   if (pathIsArray) {
@@ -78,9 +80,10 @@ const generateNodeChild = (child, exprs, bindings) => {
     return expression(`%%t%%.embedded(%%node%%)`)({
       t: bindings.t,
       node: expression(
-        `%%t%%.t_node('Space', 'Space', %%children%%, %%properties%%, %%attributes%%)`,
+        `%%t%%.s_t_node(%%l%%.Space, 'Space', %%children%%, %%properties%%, %%attributes%%)`,
       )({
         t: bindings.t,
+        l: bindings.l,
         children: getASTValue([buildLiteral(child.value)], exprs, bindings),
         properties: getASTValue({}, exprs, bindings),
         attributes: getASTValue(buildAttributes({}), exprs, bindings),
@@ -93,9 +96,10 @@ const generateNodeChild = (child, exprs, bindings) => {
     return expression(`%%t%%.embedded(%%node%%)`)({
       t: bindings.t,
       node: expression(
-        `%%t%%.s_e_node('Escape', 'SymbolicEscape', %%children%%, %%properties%%, %%attributes%%)`,
+        `%%t%%.s_e_node(%%l%%.Escape, 'SymbolicEscape', %%children%%, %%properties%%, %%attributes%%)`,
       )({
         t: bindings.t,
+        l: bindings.l,
         children,
         properties: getASTValue({}, exprs, bindings),
         attributes: t.objectExpression(
@@ -119,9 +123,10 @@ const generateNode = (node, exprs, bindings) => {
     children[0].type === 'Literal' &&
     (type === 'Punctuator' || type === 'Keyword')
   ) {
-    return expression(`%%t%%.s_node(%%language%%, %%type%%, %%value%%)`)({
+    return expression(`%%t%%.s_node(%%l%%.%%language%%, %%type%%, %%value%%)`)({
       t: bindings.t,
-      language: t.stringLiteral(language),
+      l: bindings.l,
+      language: t.identifier(mapLanguage(language)),
       type: t.stringLiteral(type),
       value: t.stringLiteral(children[0].value),
     });
@@ -168,8 +173,8 @@ const generateNode = (node, exprs, bindings) => {
                   // Fixing this requires having interpolation happen during parsing
                   // That way the grammar can deal with the separators!
                   sep: expression(
-                    "%%t%%.embedded(%%t%%.t_node('Comment', null, [%%t%%.embedded(%%t%%.t_node('Space', 'Space', [%%t%%.lit(' ')]))]))",
-                  )({ t: bindings.t }),
+                    "%%t%%.embedded(%%t%%.t_node(%%l%%.Comment, null, [%%t%%.embedded(%%t%%.t_node('Space', 'Space', [%%t%%.lit(' ')]))]))",
+                  )({ t: bindings.t, l: bindings.l }),
                 }),
               ),
             );
@@ -196,10 +201,11 @@ const generateNode = (node, exprs, bindings) => {
     }
 
     return expression(
-      `%%t%%.node(%%language%%, %%type%%, %%children%%, %%properties%%, %%attributes%%)`,
+      `%%t%%.node(%%l%%.%%language%%, %%type%%, %%children%%, %%properties%%, %%attributes%%)`,
     )({
+      l: bindings.l,
       t: bindings.t,
-      language: t.stringLiteral(language),
+      language: t.identifier(mapLanguage(language)),
       type: t.stringLiteral(type),
       children: t.arrayExpression(children_),
       properties: t.objectExpression(
@@ -256,6 +262,12 @@ const shorthandMacro = ({ references }) => {
     if (!bindings.t) {
       bindings.t = addNamespace(getTopScope(ref.scope).path, '@bablr/agast-helpers/shorthand', {
         nameHint: 't',
+      });
+    }
+
+    if (!bindings.l) {
+      bindings.l = addNamespace(getTopScope(ref.scope).path, '@bablr/agast-vm-helpers/languages', {
+        nameHint: 'l',
       });
     }
 
