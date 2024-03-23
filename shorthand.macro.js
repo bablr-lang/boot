@@ -96,7 +96,7 @@ const generateNodeChild = (child, exprs, bindings) => {
     return expression(`%%t%%.embedded(%%node%%)`)({
       t: bindings.t,
       node: expression(
-        `%%t%%.s_e_node(%%l%%.Escape, 'SymbolicEscape', %%children%%, %%properties%%, %%attributes%%)`,
+        `%%t%%.s_e_node(%%l%%.CSTML, 'Escape', %%children%%, %%properties%%, %%attributes%%)`,
       )({
         t: bindings.t,
         l: bindings.l,
