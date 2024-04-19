@@ -1,32 +1,29 @@
+const { spawnSync } = require('node:child_process');
 const t = require('@babel/types');
 const { expression } = require('@babel/template');
+const { diff } = require('jest-diff');
 const isObject = require('iter-tools-es/methods/is-object');
 const isUndefined = require('iter-tools-es/methods/is-undefined');
 const isNull = require('iter-tools-es/methods/is-null');
 const isString = require('iter-tools-es/methods/is-string');
 const concat = require('iter-tools-es/methods/concat');
 const { createMacro } = require('babel-plugin-macros');
-const { TemplateParser } = require('./lib/miniparser.js');
+const { TemplateParser, parse } = require('./lib/index.js');
 const i = require('./lib/languages/instruction.js');
 const re = require('./lib/languages/regex.js');
 const spam = require('./lib/languages/spamex.js');
-const str = require('./lib/languages/string.js');
-const num = require('./lib/languages/number.js');
 const cstml = require('./lib/languages/cstml.js');
 const { addNamespace, addNamed } = require('@babel/helper-module-imports');
 const { PathResolver } = require('@bablr/boot-helpers/path');
-const { buildLiteral, buildAttributes } = require('./lib/builders');
+const { buildLiteral } = require('./lib/builders');
+const { printPrettyCSTML } = require('./lib/print.js');
 
 const { hasOwn } = Object;
 const { isArray } = Array;
 const isNumber = (v) => typeof v === 'number';
 const isBoolean = (v) => typeof v === 'boolean';
-
 const isPlainObject = (v) => isObject(v) && !isArray(v);
-
 const printRef = (ref) => (ref.pathIsArray ? `${ref.pathName}[]` : ref.pathName);
-
-const mapLanguage = (lang) => (lang === 'String' ? 'CSTML' : lang);
 
 const set = (obj, path, value) => {
   const { pathName, pathIsArray } = path;
@@ -46,7 +43,7 @@ const set = (obj, path, value) => {
   }
 };
 
-const getASTValue = (v, exprs, bindings) => {
+const getBabelASTValue = (v, exprs, bindings) => {
   return isNull(v)
     ? t.nullLiteral()
     : isUndefined(v)
@@ -58,177 +55,232 @@ const getASTValue = (v, exprs, bindings) => {
     : isBoolean(v)
     ? t.booleanLiteral(v)
     : isArray(v)
-    ? t.arrayExpression(v.map((v) => getASTValue(v, exprs, bindings)))
+    ? t.arrayExpression(v.map((v) => getBabelASTValue(v, exprs, bindings)))
     : isPlainObject(v) && !v.language
     ? t.objectExpression(
         Object.entries(v).map(([k, v]) =>
-          t.objectProperty(t.identifier(k), getASTValue(v, exprs, bindings)),
+          t.objectProperty(t.identifier(k), getBabelASTValue(v, exprs, bindings)),
         ),
       )
-    : generateNode(v, exprs, bindings);
+    : generateBabelNode(v, exprs, bindings);
 };
 
-const generateNodeChild = (child, exprs, bindings) => {
+const getAgASTValue = (language, miniNode) => {
+  if (!miniNode) return miniNode;
+
+  const { language: languageName, type, attributes } = miniNode;
+  const flags = {};
+  const properties = {};
+  const children = [];
+  const resolver = new PathResolver(miniNode);
+  const resolvedLanguage =
+    languageName !== language.name ? language.dependencies[languageName] : language;
+
+  if (
+    type === 'Punctuator' ||
+    type === 'Keyword' ||
+    type === 'Identifier' ||
+    type === 'StringContent'
+  ) {
+    flags.token = true;
+  }
+
+  for (const child of miniNode.children) {
+    if (child.type === 'Reference') {
+      const path = child.value;
+      const node = resolver.get(path);
+      set(properties, path, getAgASTValue(resolvedLanguage, node));
+      children.push(child);
+    } else if (child.type === 'Trivia') {
+      children.push({
+        type: 'Embedded',
+        value: {
+          flags: { token: true, trivia: true },
+          language: 'https://github.com/bablr-lang/language-blank-space',
+          type: 'Space',
+          children: [buildLiteral(child.value)],
+          properties: {},
+          attributes: {},
+        },
+      });
+    } else if (child.type === 'Escape') {
+      const { cooked, raw } = child.value;
+      const attributes = { cooked };
+
+      children.push({
+        type: 'Embedded',
+        value: {
+          flags: { escape: true, token: true },
+          language: cstml.canonicalURL,
+          type: 'Escape',
+          children: [buildLiteral(raw)],
+          properties: {},
+          attributes,
+        },
+      });
+    } else {
+      children.push(child);
+    }
+  }
+
+  return { flags, language: resolvedLanguage.canonicalURL, type, children, properties, attributes };
+};
+
+const generateBabelNodeChild = (child, exprs, bindings) => {
   if (child.type === 'Reference') {
     return expression(`%%t%%.ref\`${printRef(child.value)}\``)({ t: bindings.t });
   } else if (child.type === 'Literal') {
     return expression(`%%t%%.lit(%%value%%)`)({
       t: bindings.t,
-      value: getASTValue(child.value, exprs, bindings),
+      value: getBabelASTValue(child.value, exprs, bindings),
     });
-  } else if (child.type === 'Trivia') {
-    return expression(`%%t%%.embedded(%%node%%)`)({
+  } else if (child.type === 'Embedded') {
+    return expression(`%%t%%.embedded(%%value%%)`)({
       t: bindings.t,
-      node: expression(
-        `%%t%%.s_t_node(%%l%%.Space, 'Space', %%children%%, %%properties%%, %%attributes%%)`,
-      )({
-        t: bindings.t,
-        l: bindings.l,
-        children: getASTValue([buildLiteral(child.value)], exprs, bindings),
-        properties: getASTValue({}, exprs, bindings),
-        attributes: getASTValue(buildAttributes({}), exprs, bindings),
-      }),
-    });
-  } else if (child.type === 'Escape') {
-    const { cooked, raw } = child.value;
-    const children = getASTValue([buildLiteral(raw)], exprs, bindings);
-
-    return expression(`%%t%%.embedded(%%node%%)`)({
-      t: bindings.t,
-      node: expression(
-        `%%t%%.s_e_node(%%l%%.CSTML, 'Escape', %%children%%, %%properties%%, %%attributes%%)`,
-      )({
-        t: bindings.t,
-        l: bindings.l,
-        children,
-        properties: getASTValue({}, exprs, bindings),
-        attributes: t.objectExpression(
-          Object.entries({ cooked }).map(([key, value]) =>
-            t.objectProperty(t.identifier(key), getASTValue(value, exprs, bindings)),
-          ),
-        ),
-      }),
+      value: generateBabelNode(child.value, exprs, bindings),
     });
   } else {
     throw new Error(`Unknown child type ${child.type}`);
   }
 };
 
-const generateNode = (node, exprs, bindings) => {
-  const resolver = new PathResolver(node);
-  const { children, type, language, attributes } = node;
-
-  if (
-    children.length === 1 &&
-    children[0].type === 'Literal' &&
-    (type === 'Punctuator' || type === 'Keyword')
-  ) {
-    return expression(`%%t%%.s_node(%%l%%.%%language%%, %%type%%, %%value%%)`)({
-      t: bindings.t,
-      l: bindings.l,
-      language: t.identifier(mapLanguage(language)),
-      type: t.stringLiteral(type),
-      value: t.stringLiteral(children[0].value),
-    });
+const getAgastNodeType = (flags) => {
+  if (flags.token && flags.trivia) {
+    return 's_t_node';
+  } else if (flags.token && flags.escape) {
+    return 's_e_node';
+  } else if (flags.token) {
+    return 's_node';
   } else {
-    const properties_ = {};
-    const children_ = [];
-
-    if (!children) {
-      throw new Error();
-    }
-
-    for (const child of children) {
-      if (child.type === 'Reference') {
-        const path = child.value;
-        const { pathIsArray, pathName } = path;
-        const resolved = resolver.get(path);
-
-        if (resolved) {
-          set(properties_, path, generateNode(resolved, exprs, bindings));
-          children_.push(generateNodeChild(child, exprs, bindings));
-        } else {
-          // gap
-          const expr = exprs.pop();
-          const { interpolateArray, interpolateArrayChildren, interpolateString } = bindings;
-
-          if (pathIsArray) {
-            set(
-              properties_,
-              path,
-              expression('[...%%interpolateArray%%(%%expr%%)]')({
-                interpolateArray,
-                expr,
-              }).elements[0],
-            );
-
-            children_.push(
-              t.spreadElement(
-                expression('%%interpolateArrayChildren%%(%%expr%%, %%ref%%, %%sep%%)')({
-                  interpolateArrayChildren,
-                  expr,
-                  ref: expression(`%%t%%.ref\`${printRef(child.value)}\``)({ t: bindings.t }),
-
-                  // Really really awful unsafe-as-heck hack, to be removed ASAP
-                  // Fixing this requires having interpolation happen during parsing
-                  // That way the grammar can deal with the separators!
-                  sep: expression(
-                    "%%t%%.embedded(%%t%%.t_node(%%l%%.Comment, null, [%%t%%.embedded(%%t%%.t_node('Space', 'Space', [%%t%%.lit(' ')]))]))",
-                  )({ t: bindings.t, l: bindings.l }),
-                }),
-              ),
-            );
-          } else if (language === 'String' && type === 'String') {
-            set(
-              properties_,
-              path,
-              expression('%%interpolateString%%(%%expr%%)')({
-                interpolateString,
-                expr,
-              }),
-            );
-
-            children_.push(generateNodeChild(child, exprs, bindings));
-          } else {
-            set(properties_, path, expr);
-
-            children_.push(generateNodeChild(child, exprs, bindings));
-          }
-        }
-      } else {
-        children_.push(generateNodeChild(child, exprs, bindings));
-      }
-    }
-
-    return expression(
-      `%%t%%.node(%%l%%.%%language%%, %%type%%, %%children%%, %%properties%%, %%attributes%%)`,
-    )({
-      l: bindings.l,
-      t: bindings.t,
-      language: t.identifier(mapLanguage(language)),
-      type: t.stringLiteral(type),
-      children: t.arrayExpression(children_),
-      properties: t.objectExpression(
-        Object.entries(properties_).map(([key, value]) =>
-          t.objectProperty(t.identifier(key), isArray(value) ? t.arrayExpression(value) : value),
-        ),
-      ),
-      attributes: t.objectExpression(
-        Object.entries(attributes).map(([key, value]) =>
-          t.objectProperty(t.identifier(key), getASTValue(value, exprs, bindings)),
-        ),
-      ),
-    });
+    return 'node';
   }
 };
 
+const generateBabelNode = (node, exprs, bindings) => {
+  const resolver = new PathResolver(node);
+  const { flags = {}, children, type, language, attributes } = node;
+
+  const properties_ = {};
+  const children_ = [];
+
+  if (!children) {
+    throw new Error();
+  }
+
+  for (const child of children) {
+    if (child.type === 'Reference') {
+      const path = child.value;
+      const { pathIsArray, pathName } = path;
+      const resolved = resolver.get(path);
+
+      if (resolved) {
+        set(properties_, path, generateBabelNode(resolved, exprs, bindings));
+        children_.push(generateBabelNodeChild(child, exprs, bindings));
+      } else {
+        // gap
+        const expr = exprs.pop();
+        const { interpolateArray, interpolateArrayChildren, interpolateString } = bindings;
+
+        if (pathIsArray) {
+          set(
+            properties_,
+            path,
+            expression('[...%%interpolateArray%%(%%expr%%)]')({
+              interpolateArray,
+              expr,
+            }).elements[0],
+          );
+
+          children_.push(
+            t.spreadElement(
+              expression('%%interpolateArrayChildren%%(%%expr%%, %%ref%%, %%sep%%)')({
+                interpolateArrayChildren,
+                expr,
+                ref: expression(`%%t%%.ref\`${printRef(child.value)}\``)({ t: bindings.t }),
+
+                // Really really awful unsafe-as-heck hack, to be removed ASAP
+                // Fixing this requires having interpolation happen during parsing
+                // That way the grammar can deal with the separators!
+                sep: expression(
+                  "%%t%%.embedded(%%t%%.t_node(%%l%%.Comment, null, [%%t%%.embedded(%%t%%.t_node('Space', 'Space', [%%t%%.lit(' ')]))]))",
+                )({ t: bindings.t, l: bindings.l }),
+              }),
+            ),
+          );
+        } else if (language === cstml.canonicalURL && type === 'String') {
+          set(
+            properties_,
+            path,
+            expression('%%interpolateString%%(%%expr%%)')({
+              interpolateString,
+              expr,
+            }),
+          );
+
+          children_.push(generateBabelNodeChild(child, exprs, bindings));
+        } else {
+          set(properties_, path, expr);
+
+          children_.push(generateBabelNodeChild(child, exprs, bindings));
+        }
+      }
+    } else {
+      children_.push(generateBabelNodeChild(child, exprs, bindings));
+    }
+  }
+
+  const nodeType = getAgastNodeType(flags);
+
+  const propsAtts = nodeType === 's_node' ? '' : ', %%properties%%, %%attributes%%';
+  const propsAttsValue =
+    nodeType === 's_node'
+      ? {}
+      : {
+          properties: t.objectExpression(
+            Object.entries(properties_).map(([key, value]) =>
+              t.objectProperty(
+                t.identifier(key),
+                isArray(value) ? t.arrayExpression(value) : value,
+              ),
+            ),
+          ),
+          attributes: t.objectExpression(
+            Object.entries(attributes).map(([key, value]) =>
+              t.objectProperty(t.identifier(key), getBabelASTValue(value, exprs, bindings)),
+            ),
+          ),
+        };
+
+  return expression(`%%t%%.%%nodeType%%(%%l%%.%%language%%, %%type%%, %%children%%${propsAtts})`)({
+    t: bindings.t,
+    l: bindings.l,
+    language: t.identifier(namesFor[language]),
+    nodeType: t.identifier(nodeType),
+    type: t.stringLiteral(type),
+    children:
+      nodeType === 's_node' ? t.stringLiteral(children[0].value) : t.arrayExpression(children_),
+    ...propsAttsValue,
+  });
+};
+
+const getTopScope = (scope) => {
+  let top = scope;
+  while (top.parent) top = top.parent;
+  return top;
+};
+
+const namesFor = Object.fromEntries([
+  ...[i, re, spam, cstml].map((l) => [l.canonicalURL, l.name]),
+  ['https://github.com/bablr-lang/language-blank-space', 'Space'],
+]);
+
 const languages = {
-  i,
-  re,
-  spam,
-  str,
-  num,
-  cst: cstml,
+  i: '@bablr/language-bablr-vm-instruction',
+  re: '@bablr/language-regex-vm-instruction',
+  spam: '@bablr/language-spamex-instruction',
+  str: '@bablr/language-cstml',
+  num: '@bablr/language-cstml',
+  cst: '@bablr/language-cstml',
 };
 
 const topTypes = {
@@ -240,10 +292,13 @@ const topTypes = {
   cst: 'Fragment',
 };
 
-const getTopScope = (scope) => {
-  let top = scope;
-  while (top.parent) top = top.parent;
-  return top;
+const miniLanguages = {
+  i,
+  re,
+  spam,
+  str: cstml,
+  num: cstml,
+  cst: cstml,
 };
 
 const shorthandMacro = ({ references }) => {
@@ -307,15 +362,61 @@ const shorthandMacro = ({ references }) => {
         ? ref.parentPath.node.property.name
         : topTypes[tagName];
 
-    if (!language) throw new Error();
+    const streamText = quasis
+      .map((q) => `"${q.value.raw.replace(/[\\"]/g, '\\$&')}"`)
+      .join(' <//> ');
+
+    // console.log(streamText);
+
+    const miniLanguage = miniLanguages[tagName];
 
     const ast = new TemplateParser(
-      language,
+      miniLanguage,
       quasis.map((q) => q.value.raw),
       expressions.map(() => null),
-    ).eval({ language: language.name, type });
+    ).eval({ language: miniLanguage.name, type });
 
-    taggedTemplate.replaceWith(generateNode(ast, expressions.reverse(), bindings));
+    const agAST = getAgASTValue(miniLanguage, ast);
+    let referenceDocument = null;
+
+    const document = printPrettyCSTML(agAST);
+
+    // try {
+    //   const documentResult = spawnSync(
+    //     '../bablr-cli/bin/index.js',
+    //     ['-l', language, '-p', type, '-f'],
+    //     {
+    //       input: streamText,
+    //       encoding: 'utf8',
+    //     },
+    //   );
+
+    //   if (documentResult.status > 0) {
+    //     throw new Error('bablr CLI parse return non-zero exit');
+    //   }
+
+    //   if (documentResult.error) {
+    //     throw new Error(documentResult.error);
+    //   }
+
+    //   referenceDocument = documentResult.stdout.slice(0, -1);
+
+    //   // secondaryAst = parse(cstml, 'Document', document);
+
+    //   if (referenceDocument !== document) {
+    //     throw new Error();
+    //   }
+    // } catch (e) {
+    //   if (referenceDocument !== document) {
+    //     console.warn('grammar discrepancy');
+
+    //     console.log(diff(referenceDocument, document));
+    //   }
+
+    //   console.warn(e);
+    // }
+
+    taggedTemplate.replaceWith(generateBabelNode(agAST, expressions.reverse(), bindings));
   }
 };
 
