@@ -23,23 +23,23 @@ const { isArray } = Array;
 const isNumber = (v) => typeof v === 'number';
 const isBoolean = (v) => typeof v === 'boolean';
 const isPlainObject = (v) => isObject(v) && !isArray(v);
-const printRef = (ref) => (ref.pathIsArray ? `${ref.pathName}[]` : ref.pathName);
+const printRef = (ref) => (ref.isArray ? `${ref.name}[]` : ref.name);
 
 const set = (obj, path, value) => {
-  const { pathName, pathIsArray } = path;
+  const { name, isArray: pathIsArray } = path;
   if (pathIsArray) {
-    if (!obj[pathName]) {
-      obj[pathName] = [];
+    if (!obj[name]) {
+      obj[name] = [];
     }
 
-    if (!isArray(obj[pathName])) throw new Error('bad array value');
+    if (!isArray(obj[name])) throw new Error('bad array value');
 
-    obj[pathName].push(value);
+    obj[name].push(value);
   } else {
-    if (hasOwn(obj, pathName)) {
+    if (hasOwn(obj, name)) {
       throw new Error('duplicate child name');
     }
-    obj[pathName] = value;
+    obj[name] = value;
   }
 };
 
@@ -170,7 +170,7 @@ const generateBabelNode = (node, exprs, bindings) => {
   for (const child of children) {
     if (child.type === 'Reference') {
       const path = child.value;
-      const { pathIsArray, pathName } = path;
+      const { isArray: pathIsArray } = path;
       const resolved = resolver.get(path);
 
       if (resolved) {
