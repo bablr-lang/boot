@@ -69,7 +69,7 @@ const getAgASTValue = (language, miniNode) => {
   if (!miniNode) return miniNode;
 
   const { language: languageName, type, attributes } = miniNode;
-  const flags = {};
+  const flags = { escape: false, trivia: false, token: false, intrinsic: false };
   const properties = {};
   const children = [];
   const resolver = new PathResolver(miniNode);
@@ -85,6 +85,10 @@ const getAgASTValue = (language, miniNode) => {
     flags.token = true;
   }
 
+  if (type === 'Punctuator' || type === 'Keyword') {
+    flags.intrinsic = true;
+  }
+
   for (const child of miniNode.children) {
     if (child.type === 'Reference') {
       const path = child.value;
@@ -95,7 +99,7 @@ const getAgASTValue = (language, miniNode) => {
       children.push({
         type: 'Embedded',
         value: {
-          flags: { token: true, trivia: true },
+          flags: { escape: false, token: true, trivia: true, intrinsic: false },
           language: 'https://github.com/bablr-lang/language-blank-space',
           type: 'Space',
           children: [buildLiteral(child.value)],
@@ -110,7 +114,7 @@ const getAgASTValue = (language, miniNode) => {
       children.push({
         type: 'Embedded',
         value: {
-          flags: { escape: true, token: true },
+          flags: { escape: true, token: true, trivia: false, intrinsic: false },
           language: cstml.canonicalURL,
           type: 'Escape',
           children: [buildLiteral(raw)],
@@ -145,7 +149,9 @@ const generateBabelNodeChild = (child, exprs, bindings) => {
 };
 
 const getAgastNodeType = (flags) => {
-  if (flags.token && flags.trivia) {
+  if (flags.intrinsic && flags.token) {
+    return 's_i_node';
+  } else if (flags.token && flags.trivia) {
     return 's_t_node';
   } else if (flags.token && flags.escape) {
     return 's_e_node';
@@ -231,9 +237,10 @@ const generateBabelNode = (node, exprs, bindings) => {
 
   const nodeType = getAgastNodeType(flags);
 
-  const propsAtts = nodeType === 's_node' ? '' : ', %%properties%%, %%attributes%%';
+  const propsAtts =
+    nodeType === 's_node' || nodeType === 's_i_node' ? '' : ', %%properties%%, %%attributes%%';
   const propsAttsValue =
-    nodeType === 's_node'
+    nodeType === 's_node' || nodeType === 's_i_node'
       ? {}
       : {
           properties: t.objectExpression(
@@ -258,7 +265,9 @@ const generateBabelNode = (node, exprs, bindings) => {
     nodeType: t.identifier(nodeType),
     type: t.stringLiteral(type),
     children:
-      nodeType === 's_node' ? t.stringLiteral(children[0].value) : t.arrayExpression(children_),
+      nodeType === 's_node' || nodeType === 's_i_node'
+        ? t.stringLiteral(children[0].value)
+        : t.arrayExpression(children_),
     ...propsAttsValue,
   });
 };
