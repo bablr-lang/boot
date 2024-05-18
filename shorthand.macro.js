@@ -8,40 +8,20 @@ const isNull = require('iter-tools-es/methods/is-null');
 const isString = require('iter-tools-es/methods/is-string');
 const concat = require('iter-tools-es/methods/concat');
 const { createMacro } = require('babel-plugin-macros');
-const { TemplateParser, parse } = require('./lib/index.js');
+const { TemplateParser, set, getAgASTValue } = require('./lib/index.js');
 const i = require('./lib/languages/instruction.js');
 const re = require('./lib/languages/regex.js');
 const spam = require('./lib/languages/spamex.js');
 const cstml = require('./lib/languages/cstml.js');
 const { addNamespace, addNamed } = require('@babel/helper-module-imports');
 const { PathResolver } = require('@bablr/boot-helpers/path');
-const { buildLiteral } = require('./lib/builders');
 const { printPrettyCSTML } = require('./lib/print.js');
 
-const { hasOwn } = Object;
 const { isArray } = Array;
 const isNumber = (v) => typeof v === 'number';
 const isBoolean = (v) => typeof v === 'boolean';
 const isPlainObject = (v) => isObject(v) && !isArray(v);
 const printRef = (ref) => (ref.isArray ? `${ref.name}[]` : ref.name);
-
-const set = (obj, path, value) => {
-  const { name, isArray: pathIsArray } = path;
-  if (pathIsArray) {
-    if (!obj[name]) {
-      obj[name] = [];
-    }
-
-    if (!isArray(obj[name])) throw new Error('bad array value');
-
-    obj[name].push(value);
-  } else {
-    if (hasOwn(obj, name)) {
-      throw new Error('duplicate child name');
-    }
-    obj[name] = value;
-  }
-};
 
 const getBabelASTValue = (v, exprs, bindings) => {
   return isNull(v)
@@ -63,71 +43,6 @@ const getBabelASTValue = (v, exprs, bindings) => {
         ),
       )
     : generateBabelNode(v, exprs, bindings);
-};
-
-const getAgASTValue = (language, miniNode) => {
-  if (!miniNode) return miniNode;
-
-  const { language: languageName, type, attributes } = miniNode;
-  const flags = { escape: false, trivia: false, token: false, intrinsic: false };
-  const properties = {};
-  const children = [];
-  const resolver = new PathResolver(miniNode);
-  const resolvedLanguage =
-    languageName !== language.name ? language.dependencies[languageName] : language;
-
-  if (
-    type === 'Punctuator' ||
-    type === 'Keyword' ||
-    type === 'Identifier' ||
-    type === 'StringContent'
-  ) {
-    flags.token = true;
-  }
-
-  if (type === 'Punctuator' || type === 'Keyword') {
-    flags.intrinsic = true;
-  }
-
-  for (const child of miniNode.children) {
-    if (child.type === 'Reference') {
-      const path = child.value;
-      const node = resolver.get(path);
-      set(properties, path, getAgASTValue(resolvedLanguage, node));
-      children.push(child);
-    } else if (child.type === 'Trivia') {
-      children.push({
-        type: 'Embedded',
-        value: {
-          flags: { escape: false, token: true, trivia: true, intrinsic: false },
-          language: 'https://github.com/bablr-lang/language-blank-space',
-          type: 'Space',
-          children: [buildLiteral(child.value)],
-          properties: {},
-          attributes: {},
-        },
-      });
-    } else if (child.type === 'Escape') {
-      const { cooked, raw } = child.value;
-      const attributes = { cooked };
-
-      children.push({
-        type: 'Embedded',
-        value: {
-          flags: { escape: true, token: true, trivia: false, intrinsic: false },
-          language: cstml.canonicalURL,
-          type: 'Escape',
-          children: [buildLiteral(raw)],
-          properties: {},
-          attributes,
-        },
-      });
-    } else {
-      children.push(child);
-    }
-  }
-
-  return { flags, language: resolvedLanguage.canonicalURL, type, children, properties, attributes };
 };
 
 const generateBabelNodeChild = (child, exprs, bindings) => {
@@ -285,8 +200,8 @@ const namesFor = Object.fromEntries([
 
 const languages = {
   i: '@bablr/language-bablr-vm-instruction',
-  re: '@bablr/language-regex-vm-instruction',
-  spam: '@bablr/language-spamex-instruction',
+  re: '@bablr/language-regex-vm-pattern',
+  spam: '@bablr/language-spamex',
   str: '@bablr/language-cstml',
   num: '@bablr/language-cstml',
   cst: '@bablr/language-cstml',
@@ -410,19 +325,13 @@ const shorthandMacro = ({ references }) => {
 
     //   referenceDocument = documentResult.stdout.slice(0, -1);
 
-    //   // secondaryAst = parse(cstml, 'Document', document);
-
-    //   if (referenceDocument !== document) {
+    //   if (!referenceDocument.length) {
     //     throw new Error();
     //   }
+
+    //   // secondaryAst = parse(cstml, 'Document', document);
     // } catch (e) {
-    //   if (referenceDocument !== document) {
-    //     console.warn('grammar discrepancy');
-
-    //     console.log(diff(referenceDocument, document));
-    //   }
-
-    //   console.warn(e);
+    //   console.warn('  parse failure');
     // }
 
     taggedTemplate.replaceWith(generateBabelNode(agAST, expressions.reverse(), bindings));
