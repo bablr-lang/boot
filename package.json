@@ -6,7 +6,10 @@
     "node": ">=12.0.0"
   },
   "exports": {
-    ".": "./lib/index.js",
+    ".": {
+      "require": "./lib/index.js",
+      "import": "./lib/index.mjs"
+    },
     "./shorthand.macro": "./shorthand.macro.js"
   },
   "files": [

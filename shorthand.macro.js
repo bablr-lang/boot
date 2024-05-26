@@ -195,7 +195,7 @@ const getTopScope = (scope) => {
 
 const namesFor = Object.fromEntries([
   ...[i, re, spam, cstml].map((l) => [l.canonicalURL, l.name]),
-  ['https://github.com/bablr-lang/language-blank-space', 'Space'],
+  ['https://bablr.org/languages/core/space-tab-newline', 'Space'],
 ]);
 
 const languages = {
