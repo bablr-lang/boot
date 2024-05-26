@@ -22,7 +22,6 @@
     "@babel/template": "^7.22.15",
     "@babel/types": "7.23.0",
     "@bablr/boot-helpers": "0.2.0",
-    "bablr-cli": "github:bablr-lang/bablr-cli#8393d046099234e48cc99a2cee4a26fc8c209b11",
     "escape-string-regexp": "4.0.0",
     "iter-tools-es": "^7.5.3",
     "jest-diff": "29.7.0"
