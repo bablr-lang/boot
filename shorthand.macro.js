@@ -213,7 +213,7 @@ const topTypes = {
   spam: 'Matcher',
   str: 'String',
   num: 'Integer',
-  cst: 'Fragment',
+  cst: 'Node',
 };
 
 const miniLanguages = {
