@@ -2,11 +2,11 @@ const { spawnSync } = require('node:child_process');
 const t = require('@babel/types');
 const { expression } = require('@babel/template');
 const { diff } = require('jest-diff');
-const isObject = require('iter-tools-es/methods/is-object');
-const isUndefined = require('iter-tools-es/methods/is-undefined');
-const isNull = require('iter-tools-es/methods/is-null');
-const isString = require('iter-tools-es/methods/is-string');
-const concat = require('iter-tools-es/methods/concat');
+const isObject = require('iter-tools/methods/is-object');
+const isUndefined = require('iter-tools/methods/is-undefined');
+const isNull = require('iter-tools/methods/is-null');
+const isString = require('iter-tools/methods/is-string');
+const concat = require('iter-tools/methods/concat');
 const { createMacro } = require('babel-plugin-macros');
 const { TemplateParser, set, getAgASTValue } = require('./lib/index.js');
 const i = require('./lib/languages/instruction.js');
@@ -195,16 +195,16 @@ const getTopScope = (scope) => {
 
 const namesFor = Object.fromEntries([
   ...[i, re, spam, cstml].map((l) => [l.canonicalURL, l.name]),
-  ['https://bablr.org/languages/core/space-tab-newline', 'Space'],
+  ['https://bablr.org/languages/core/en/space-tab-newline', 'Space'],
 ]);
 
 const languages = {
-  i: '@bablr/language-bablr-vm-instruction',
-  re: '@bablr/language-regex-vm-pattern',
-  spam: '@bablr/language-spamex',
-  str: '@bablr/language-cstml',
-  num: '@bablr/language-cstml',
-  cst: '@bablr/language-cstml',
+  i: '@bablr/language-en-bablr-vm-instruction',
+  re: '@bablr/language-en-regex-vm-pattern',
+  spam: '@bablr/language-en-spamex',
+  str: '@bablr/language-en-cstml',
+  num: '@bablr/language-en-cstml',
+  cst: '@bablr/language-en-cstml',
 };
 
 const topTypes = {
