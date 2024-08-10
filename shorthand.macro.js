@@ -53,7 +53,7 @@ const generateBabelNodeChild = (child, exprs, bindings) => {
       t: bindings.t,
       value: getBabelASTValue(child.value, exprs, bindings),
     });
-  } else if (child.type === 'Embedded') {
+  } else if (child.type === 'EmbeddedNode') {
     return expression(`%%t%%.embedded(%%value%%)`)({
       t: bindings.t,
       value: generateBabelNode(child.value, exprs, bindings),
