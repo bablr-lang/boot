@@ -48,7 +48,7 @@ const getBabelASTValue = (v, exprs, bindings) => {
 const generateBabelNodeChild = (child, exprs, bindings) => {
   if (child.type === 'Reference') {
     return expression(`%%t%%.ref\`${printRef(child.value)}\``)({ t: bindings.t });
-  } else if (child.type === 'Literal') {
+  } else if (child.type === 'LiteralTag') {
     return expression(`%%t%%.lit(%%value%%)`)({
       t: bindings.t,
       value: getBabelASTValue(child.value, exprs, bindings),
