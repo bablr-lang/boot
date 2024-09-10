@@ -46,7 +46,7 @@ const getBabelASTValue = (v, exprs, bindings) => {
 };
 
 const generateBabelNodeChild = (child, exprs, bindings) => {
-  if (child.type === 'Reference') {
+  if (child.type === 'ReferenceTag') {
     return expression(`%%t%%.ref\`${printRef(child.value)}\``)({ t: bindings.t });
   } else if (child.type === 'LiteralTag') {
     return expression(`%%t%%.lit(%%value%%)`)({
@@ -89,7 +89,7 @@ const generateBabelNode = (node, exprs, bindings) => {
   }
 
   for (const child of children) {
-    if (child.type === 'Reference') {
+    if (child.type === 'ReferenceTag') {
       const path = child.value;
       const { isArray: pathIsArray } = path;
       const resolved = resolver.get(path);
