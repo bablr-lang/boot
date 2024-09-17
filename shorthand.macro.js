@@ -8,16 +8,26 @@ const isNull = require('iter-tools/methods/is-null');
 const isString = require('iter-tools/methods/is-string');
 const concat = require('iter-tools/methods/concat');
 const { createMacro } = require('babel-plugin-macros');
-const { TemplateParser, set, getAgASTValue } = require('./lib/index.js');
+const { TemplateParser, add, getAgASTValue } = require('./lib/index.js');
 const i = require('./lib/languages/instruction.js');
 const re = require('./lib/languages/regex.js');
 const spam = require('./lib/languages/spamex.js');
 const cstml = require('./lib/languages/cstml.js');
 const { addNamespace, addNamed } = require('@babel/helper-module-imports');
-const { PathResolver } = require('@bablr/boot-helpers/path');
 const { printPrettyCSTML } = require('./lib/print.js');
+const sym = require('@bablr/boot-helpers/symbols');
+const {
+  OpenNodeTag,
+  CloseNodeTag,
+  ReferenceTag,
+  GapTag,
+  ArrayTag,
+  LiteralTag,
+  EmbeddedNode,
+} = require('@bablr/boot-helpers/symbols');
 
 const { isArray } = Array;
+const { hasOwn } = Object;
 const isNumber = (v) => typeof v === 'number';
 const isBoolean = (v) => typeof v === 'boolean';
 const isPlainObject = (v) => isObject(v) && !isArray(v);
@@ -46,17 +56,25 @@ const getBabelASTValue = (v, exprs, bindings) => {
 };
 
 const generateBabelNodeChild = (child, exprs, bindings) => {
-  if (child.type === 'ReferenceTag') {
+  if (child.type === ReferenceTag) {
     return expression(`%%t%%.ref\`${printRef(child.value)}\``)({ t: bindings.t });
-  } else if (child.type === 'LiteralTag') {
+  } else if (child.type === LiteralTag) {
     return expression(`%%t%%.lit(%%value%%)`)({
       t: bindings.t,
       value: getBabelASTValue(child.value, exprs, bindings),
     });
-  } else if (child.type === 'EmbeddedNode') {
+  } else if (child.type === EmbeddedNode) {
     return expression(`%%t%%.embedded(%%value%%)`)({
       t: bindings.t,
       value: generateBabelNode(child.value, exprs, bindings),
+    });
+  } else if (child.type === ArrayTag) {
+    return expression(`%%t%%.arr()`)({
+      t: bindings.t,
+    });
+  } else if (child.type === GapTag) {
+    return expression(`%%t%%.gap()`)({
+      t: bindings.t,
     });
   } else {
     throw new Error(`Unknown child type ${child.type}`);
@@ -70,6 +88,8 @@ const getAgastNodeType = (flags) => {
     return 's_t_node';
   } else if (flags.token && flags.escape) {
     return 's_e_node';
+  } else if (flags.escape) {
+    return 'e_node';
   } else if (flags.token) {
     return 's_node';
   } else {
@@ -78,7 +98,6 @@ const getAgastNodeType = (flags) => {
 };
 
 const generateBabelNode = (node, exprs, bindings) => {
-  const resolver = new PathResolver(node);
   const { flags = {}, children, type, language, attributes } = node;
 
   const properties_ = {};
@@ -88,65 +107,78 @@ const generateBabelNode = (node, exprs, bindings) => {
     throw new Error();
   }
 
-  for (const child of children) {
-    if (child.type === 'ReferenceTag') {
-      const path = child.value;
-      const { isArray: pathIsArray } = path;
-      const resolved = resolver.get(path);
+  // resolver.advance({ type: DoctypeTag, value: {} });
 
-      if (resolved) {
-        set(properties_, path, generateBabelNode(resolved, exprs, bindings));
-        children_.push(generateBabelNodeChild(child, exprs, bindings));
-      } else {
-        // gap
-        const expr = exprs.pop();
-        const { interpolateArray, interpolateArrayChildren, interpolateString } = bindings;
+  for (const child of children) {
+    if (child.type === ReferenceTag) {
+      const path = child.value;
+      const { isArray: pathIsArray, name } = path;
+      if (!pathIsArray || hasOwn(properties_, name)) {
+        let resolved = node.properties[name];
 
         if (pathIsArray) {
-          set(
-            properties_,
-            path,
-            expression('[...%%interpolateArray%%(%%expr%%)]')({
-              interpolateArray,
-              expr,
-            }).elements[0],
-          );
+          resolved = resolved[properties_[name].length];
+        }
 
-          children_.push(
-            t.spreadElement(
-              expression('%%interpolateArrayChildren%%(%%expr%%, %%ref%%, %%sep%%)')({
-                interpolateArrayChildren,
-                expr,
-                ref: expression(`%%t%%.ref\`${printRef(child.value)}\``)({ t: bindings.t }),
-
-                // Really really awful unsafe-as-heck hack, to be removed ASAP
-                // Fixing this requires having interpolation happen during parsing
-                // That way the grammar can deal with the separators!
-                sep: expression(
-                  "%%t%%.embedded(%%t%%.t_node(%%l%%.Comment, null, [%%t%%.embedded(%%t%%.t_node('Space', 'Space', [%%t%%.lit(' ')]))]))",
-                )({ t: bindings.t, l: bindings.l }),
-              }),
-            ),
-          );
-        } else if (language === cstml.canonicalURL && type === 'String') {
-          set(
-            properties_,
-            path,
-            expression('%%interpolateString%%(%%expr%%)')({
-              interpolateString,
-              expr,
-            }),
-          );
-
+        if (resolved.type !== sym.gap) {
+          add(properties_, path, generateBabelNode(resolved, exprs, bindings));
           children_.push(generateBabelNodeChild(child, exprs, bindings));
         } else {
-          set(properties_, path, expr);
+          // gap
+          const expr = exprs.pop();
+          const { interpolateArray, interpolateArrayChildren, interpolateString } = bindings;
 
-          children_.push(generateBabelNodeChild(child, exprs, bindings));
+          if (pathIsArray) {
+            add(
+              properties_,
+              path,
+              expression('[...%%interpolateArray%%(%%expr%%)]')({
+                interpolateArray,
+                expr,
+              }).elements[0],
+            );
+
+            children_.push(
+              t.spreadElement(
+                expression('%%interpolateArrayChildren%%(%%expr%%, %%ref%%, %%sep%%)')({
+                  interpolateArrayChildren,
+                  expr,
+                  ref: expression(`%%t%%.ref\`${printRef(child.value)}\``)({ t: bindings.t }),
+
+                  // Really really awful unsafe-as-heck hack, to be removed ASAP
+                  // Fixing this requires having interpolation happen during parsing
+                  // That way the grammar can deal with the separators!
+                  sep: expression(
+                    "%%t%%.embedded(%%t%%.t_node(%%l%%.Comment, null, [%%t%%.embedded(%%t%%.t_node('Space', 'Space', [%%t%%.lit(' ')]))]))",
+                  )({ t: bindings.t, l: bindings.l }),
+                }),
+              ),
+            );
+          } else if (language === cstml.canonicalURL && type === 'String') {
+            add(
+              properties_,
+              path,
+              expression('%%interpolateString%%(%%expr%%)')({
+                interpolateString,
+                expr,
+              }),
+            );
+
+            children_.push(generateBabelNodeChild(child, exprs, bindings));
+          } else {
+            add(properties_, path, expr);
+
+            children_.push(generateBabelNodeChild(child, exprs, bindings));
+          }
         }
+      } else if (pathIsArray) {
+        children_.push(generateBabelNodeChild(child, exprs, bindings));
+        properties_[name] = [];
       }
     } else {
-      children_.push(generateBabelNodeChild(child, exprs, bindings));
+      if (child.type !== OpenNodeTag && child.type !== CloseNodeTag) {
+        children_.push(generateBabelNodeChild(child, exprs, bindings));
+      }
     }
   }
 
@@ -173,6 +205,10 @@ const generateBabelNode = (node, exprs, bindings) => {
           ),
         };
 
+  if (type === sym.gap) {
+    return expression(`%%t%%.g_node()`)({ t: bindings.t });
+  }
+
   return expression(`%%t%%.%%nodeType%%(%%l%%.%%language%%, %%type%%, %%children%%${propsAtts})`)({
     t: bindings.t,
     l: bindings.l,
@@ -181,7 +217,7 @@ const generateBabelNode = (node, exprs, bindings) => {
     type: t.stringLiteral(type),
     children:
       nodeType === 's_node' || nodeType === 's_i_node'
-        ? t.stringLiteral(children[0].value)
+        ? t.stringLiteral(children[1].value)
         : t.arrayExpression(children_),
     ...propsAttsValue,
   });

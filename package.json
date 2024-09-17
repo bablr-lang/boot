@@ -23,6 +23,7 @@
     "@babel/template": "^7.22.15",
     "@babel/types": "7.23.0",
     "@bablr/boot-helpers": "0.2.0",
+    "@iter-tools/imm-stack": "1.1.0",
     "escape-string-regexp": "4.0.0",
     "iter-tools": "^7.5.3",
     "jest-diff": "29.7.0"
