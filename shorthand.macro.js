@@ -25,6 +25,7 @@ const {
   LiteralTag,
   EmbeddedNode,
 } = require('@bablr/boot-helpers/symbols');
+const btree = require('@bablr/boot-helpers/btree');
 
 const { isArray } = Array;
 const { hasOwn } = Object;
@@ -32,6 +33,19 @@ const isNumber = (v) => typeof v === 'number';
 const isBoolean = (v) => typeof v === 'boolean';
 const isPlainObject = (v) => isObject(v) && !isArray(v);
 const printRef = (ref) => (ref.isArray ? `${ref.name}[]` : ref.name);
+
+const getBtreeASTValue = (tree, exprs, bindings) => {
+  if (!isArray(tree)) return tree;
+
+  if (btree.isLeafNode(tree)) {
+    return t.arrayExpression(tree);
+  } else {
+    return t.arrayExpression([
+      t.numericLiteral(tree[0]),
+      t.arrayExpression(tree[1].map((v) => getBtreeASTValue(v, exprs, bindings))),
+    ]);
+  }
+};
 
 const getBabelASTValue = (v, exprs, bindings) => {
   return isNull(v)
@@ -101,7 +115,7 @@ const generateBabelNode = (node, exprs, bindings) => {
   const { flags = {}, children, type, language, attributes } = node;
 
   const properties_ = {};
-  const children_ = [];
+  let children_ = [];
 
   if (!children) {
     throw new Error();
@@ -109,7 +123,7 @@ const generateBabelNode = (node, exprs, bindings) => {
 
   // resolver.advance({ type: DoctypeTag, value: {} });
 
-  for (const child of children) {
+  for (const child of btree.traverse(children)) {
     if (child.type === ReferenceTag) {
       const path = child.value;
       const { isArray: pathIsArray, name } = path;
@@ -117,12 +131,12 @@ const generateBabelNode = (node, exprs, bindings) => {
         let resolved = node.properties[name];
 
         if (pathIsArray) {
-          resolved = resolved[properties_[name].length];
+          resolved = btree.getAt(btree.getSum(properties_[name]), resolved);
         }
 
         if (resolved.type !== sym.gap) {
           add(properties_, path, generateBabelNode(resolved, exprs, bindings));
-          children_.push(generateBabelNodeChild(child, exprs, bindings));
+          children_ = btree.add(children_, generateBabelNodeChild(child, exprs, bindings));
         } else {
           // gap
           const expr = exprs.pop();
@@ -138,7 +152,8 @@ const generateBabelNode = (node, exprs, bindings) => {
               }).elements[0],
             );
 
-            children_.push(
+            children_ = btree.add(
+              children_,
               t.spreadElement(
                 expression('%%interpolateArrayChildren%%(%%expr%%, %%ref%%, %%sep%%)')({
                   interpolateArrayChildren,
@@ -164,20 +179,20 @@ const generateBabelNode = (node, exprs, bindings) => {
               }),
             );
 
-            children_.push(generateBabelNodeChild(child, exprs, bindings));
+            children_ = btree.add(children_, generateBabelNodeChild(child, exprs, bindings));
           } else {
             add(properties_, path, expr);
 
-            children_.push(generateBabelNodeChild(child, exprs, bindings));
+            children_ = btree.add(children_, generateBabelNodeChild(child, exprs, bindings));
           }
         }
       } else if (pathIsArray) {
-        children_.push(generateBabelNodeChild(child, exprs, bindings));
+        children_ = btree.add(children_, generateBabelNodeChild(child, exprs, bindings));
         properties_[name] = [];
       }
     } else {
       if (child.type !== OpenNodeTag && child.type !== CloseNodeTag) {
-        children_.push(generateBabelNodeChild(child, exprs, bindings));
+        children_ = btree.add(children_, generateBabelNodeChild(child, exprs, bindings));
       }
     }
   }
@@ -192,10 +207,7 @@ const generateBabelNode = (node, exprs, bindings) => {
       : {
           properties: t.objectExpression(
             Object.entries(properties_).map(([key, value]) =>
-              t.objectProperty(
-                t.identifier(key),
-                isArray(value) ? t.arrayExpression(value) : value,
-              ),
+              t.objectProperty(t.identifier(key), isArray(value) ? getBtreeASTValue(value) : value),
             ),
           ),
           attributes: t.objectExpression(
@@ -217,8 +229,8 @@ const generateBabelNode = (node, exprs, bindings) => {
     type: t.stringLiteral(type),
     children:
       nodeType === 's_node' || nodeType === 's_i_node'
-        ? t.stringLiteral(children[1].value)
-        : t.arrayExpression(children_),
+        ? t.stringLiteral(btree.getAt(1, children).value)
+        : getBtreeASTValue(children_),
     ...propsAttsValue,
   });
 };
