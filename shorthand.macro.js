@@ -136,7 +136,7 @@ const generateBabelNode = (node, exprs, bindings) => {
 
         if (resolved.type !== sym.gap) {
           add(properties_, path, generateBabelNode(resolved, exprs, bindings));
-          children_ = btree.add(children_, generateBabelNodeChild(child, exprs, bindings));
+          children_ = btree.push(children_, generateBabelNodeChild(child, exprs, bindings));
         } else {
           // gap
           const expr = exprs.pop();
@@ -152,7 +152,7 @@ const generateBabelNode = (node, exprs, bindings) => {
               }).elements[0],
             );
 
-            children_ = btree.add(
+            children_ = btree.push(
               children_,
               t.spreadElement(
                 expression('%%interpolateArrayChildren%%(%%expr%%, %%ref%%, %%sep%%)')({
@@ -179,20 +179,20 @@ const generateBabelNode = (node, exprs, bindings) => {
               }),
             );
 
-            children_ = btree.add(children_, generateBabelNodeChild(child, exprs, bindings));
+            children_ = btree.push(children_, generateBabelNodeChild(child, exprs, bindings));
           } else {
             add(properties_, path, expr);
 
-            children_ = btree.add(children_, generateBabelNodeChild(child, exprs, bindings));
+            children_ = btree.push(children_, generateBabelNodeChild(child, exprs, bindings));
           }
         }
       } else if (pathIsArray) {
-        children_ = btree.add(children_, generateBabelNodeChild(child, exprs, bindings));
+        children_ = btree.push(children_, generateBabelNodeChild(child, exprs, bindings));
         properties_[name] = [];
       }
     } else {
       if (child.type !== OpenNodeTag && child.type !== CloseNodeTag) {
-        children_ = btree.add(children_, generateBabelNodeChild(child, exprs, bindings));
+        children_ = btree.push(children_, generateBabelNodeChild(child, exprs, bindings));
       }
     }
   }
