@@ -96,9 +96,7 @@ const generateBabelNodeChild = (child, exprs, bindings) => {
 };
 
 const getAgastNodeType = (flags) => {
-  if (flags.intrinsic && flags.token) {
-    return 's_i_node';
-  } else if (flags.token && flags.trivia) {
+  if (flags.token && flags.trivia) {
     return 's_t_node';
   } else if (flags.token && flags.escape) {
     return 's_e_node';
@@ -140,7 +138,7 @@ const generateBabelNode = (node, exprs, bindings) => {
         } else {
           // gap
           const expr = exprs.pop();
-          const { interpolateArray, interpolateArrayChildren, interpolateString } = bindings;
+          const { interpolateArray, interpolateFragmentChildren, interpolateString } = bindings;
 
           if (pathIsArray) {
             add(
@@ -155,17 +153,10 @@ const generateBabelNode = (node, exprs, bindings) => {
             children_ = btree.push(
               children_,
               t.spreadElement(
-                expression('%%interpolateArrayChildren%%(%%expr%%, %%ref%%, %%sep%%)')({
-                  interpolateArrayChildren,
+                expression('%%interpolateFragmentChildren%%(%%expr%%, %%ref%%)')({
+                  interpolateFragmentChildren,
                   expr,
                   ref: expression(`%%t%%.ref\`${printRef(child.value)}\``)({ t: bindings.t }),
-
-                  // Really really awful unsafe-as-heck hack, to be removed ASAP
-                  // Fixing this requires having interpolation happen during parsing
-                  // That way the grammar can deal with the separators!
-                  sep: expression(
-                    "%%t%%.embedded(%%t%%.t_node(%%l%%.Comment, null, [%%t%%.embedded(%%t%%.t_node('Space', 'Space', [%%t%%.lit(' ')]))]))",
-                  )({ t: bindings.t, l: bindings.l }),
                 }),
               ),
             );
@@ -306,10 +297,10 @@ const shorthandMacro = ({ references }) => {
       );
     }
 
-    if (!bindings.interpolateArrayChildren) {
-      bindings.interpolateArrayChildren = addNamed(
+    if (!bindings.interpolateFragmentChildren) {
+      bindings.interpolateFragmentChildren = addNamed(
         getTopScope(ref.scope).path,
-        'interpolateArrayChildren',
+        'interpolateFragmentChildren',
         '@bablr/agast-helpers/template',
       );
     }
