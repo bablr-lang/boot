@@ -7,12 +7,18 @@
   },
   "exports": {
     ".": {
-      "require": "./dist/cjs.bundle.js",
-      "import": "./dist/esm.bundle.js"
+      "require": "./dist/cjs.bundle.cjs",
+      "import": "./lib/esm-entry.mjs"
     },
     "./shorthand.macro": "./shorthand.macro.js"
   },
-  "files": ["lib/**/*.js", "lib/**/*.mjs", "shorthand.macro.js"],
+  "files": [
+    "dist/**/*.cjs",
+    "dist/**/*.mjs",
+    "lib/esm-entry.mjs",
+    "lib/**/*.js",
+    "shorthand.macro.js"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "rollup -c"
