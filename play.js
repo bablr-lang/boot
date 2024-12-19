@@ -12,6 +12,6 @@ const { printPrettyCSTML } = require('./lib/print.js');
 
 Error.stackTraceLimit = 30;
 
-const source = `<Node b={ balancedSpan: "Tag", Balancer: { symbol: "]", balanced: true} }  />`;
+const source = `<Node b={ Number: NaN } />`;
 
 console.log(printPrettyCSTML(getAgASTValue(instruction, parse(instruction, 'Node', source))));
