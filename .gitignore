@@ -3,4 +3,3 @@ yarn.lock
 pnpm-lock.yaml
 package-lock.json
 play/fixture.js
-dist

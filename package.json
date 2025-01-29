@@ -5,32 +5,24 @@
   "engines": {
     "node": ">=12.0.0"
   },
+  "type": "module",
   "exports": {
-    ".": {
-      "require": "./dist/cjs.bundle.cjs",
-      "import": "./lib/esm-entry.mjs"
-    },
-    "./shorthand.macro": "./shorthand.macro.js"
+    ".": "./lib/index.js"
   },
   "files": [
-    "dist/**/*.cjs",
-    "dist/**/*.mjs",
-    "lib/esm-entry.mjs",
     "lib/**/*.js",
     "shorthand.macro.js"
   ],
   "sideEffects": false,
-  "scripts": {
-    "build": "rollup -c"
-  },
   "dependencies": {
     "@babel/helper-module-imports": "^7.22.15",
     "@babel/template": "^7.22.15",
     "@babel/types": "7.23.0",
-    "@bablr/boot-helpers": "0.3.2",
+    "@bablr/agast-helpers": "0.5.2",
+    "@bablr/agast-vm-helpers": "0.5.2",
     "@iter-tools/imm-stack": "1.1.0",
-    "escape-string-regexp": "4.0.0",
-    "iter-tools-es": "^7.5.3",
+    "escape-string-regexp": "5.0.0",
+    "iter-tools": "^7.5.3",
     "jest-diff": "29.7.0"
   },
   "devDependencies": {
@@ -45,8 +37,6 @@
     "eslint-import-resolver-enhanced-resolve": "^1.0.5",
     "eslint-plugin-import": "^2.27.5",
     "expect": "^29.6.2",
-    "install": "^0.13.0",
-    "npm": "^10.9.0",
     "prettier": "^2.0.5"
   },
   "repository": "git@github.com:bablr-lang/boot.git",
