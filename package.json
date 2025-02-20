@@ -15,15 +15,11 @@
   ],
   "sideEffects": false,
   "dependencies": {
-    "@babel/helper-module-imports": "^7.22.15",
-    "@babel/template": "^7.22.15",
-    "@babel/types": "7.23.0",
-    "@bablr/agast-helpers": "0.5.2",
-    "@bablr/agast-vm-helpers": "0.5.2",
+    "@bablr/agast-helpers": "0.6.0",
+    "@bablr/agast-vm-helpers": "0.6.0",
     "@iter-tools/imm-stack": "1.1.0",
     "escape-string-regexp": "5.0.0",
-    "iter-tools": "^7.5.3",
-    "jest-diff": "29.7.0"
+    "iter-tools": "^7.5.3"
   },
   "devDependencies": {
     "@babel/cli": "^7.23.0",
