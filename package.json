@@ -15,7 +15,7 @@
   ],
   "sideEffects": false,
   "dependencies": {
-    "@bablr/agast-helpers": "0.6.0",
+    "@bablr/agast-helpers": "0.6.1",
     "@bablr/agast-vm-helpers": "0.6.0",
     "@iter-tools/imm-stack": "1.1.0",
     "escape-string-regexp": "5.0.0",
