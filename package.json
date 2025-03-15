@@ -7,7 +7,12 @@
   },
   "type": "module",
   "exports": {
-    ".": "./lib/index.js"
+    ".": "./lib/index.js",
+    "./languages/cstml": "./lib/languages/cstml.js",
+    "./languages/instruction": "./lib/languages/instruction.js",
+    "./languages/json": "./lib/languages/json.js",
+    "./languages/regex": "./lib/languages/regex.js",
+    "./languages/spamex": "./lib/languages/spamex.js"
   },
   "files": [
     "lib/**/*.js",
