@@ -1,6 +1,6 @@
 {
   "name": "@bablr/boot",
-  "version": "0.0.0",
+  "version": "0.8.0",
   "description": "Compile-time tools for bootstrapping BABLR VM",
   "engines": {
     "node": ">=12.0.0"
@@ -20,8 +20,8 @@
   ],
   "sideEffects": false,
   "dependencies": {
-    "@bablr/agast-helpers": "0.6.1",
-    "@bablr/agast-vm-helpers": "0.6.1",
+    "@bablr/agast-helpers": "0.7.0",
+    "@bablr/agast-vm-helpers": "0.7.0",
     "@iter-tools/imm-stack": "1.1.0",
     "escape-string-regexp": "5.0.0",
     "iter-tools": "^7.5.3"
