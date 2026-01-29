@@ -20,9 +20,8 @@
   ],
   "sideEffects": false,
   "dependencies": {
-    "@bablr/agast-helpers": "0.10.2",
-    "@bablr/agast-vm-helpers": "0.10.2",
-    "@iter-tools/imm-stack": "1.2.0",
+    "@bablr/agast-helpers": "0.10.4",
+    "@bablr/agast-vm-helpers": "0.10.4",
     "escape-string-regexp": "5.0.0",
     "iter-tools-es": "^7.0.2"
   },
