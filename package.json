@@ -20,8 +20,8 @@
   ],
   "sideEffects": false,
   "dependencies": {
-    "@bablr/agast-helpers": "0.10.8",
-    "@bablr/agast-vm-helpers": "0.10.4",
+    "@bablr/agast-helpers": "0.10.10",
+    "@bablr/agast-vm-helpers": "0.10.5",
     "escape-string-regexp": "5.0.0",
     "iter-tools-es": "^7.0.2"
   },
