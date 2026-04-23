@@ -22,8 +22,7 @@
   "dependencies": {
     "@bablr/agast-helpers": "0.10.10",
     "@bablr/agast-vm-helpers": "0.10.5",
-    "escape-string-regexp": "5.0.0",
-    "iter-tools-es": "^7.0.2"
+    "escape-string-regexp": "5.0.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.23.0",
